@@ -1,0 +1,4 @@
+Sport: Yoga, Pilates, Spinning, HIIT, Zumba
+Membership: Student, Standard, Premium
+IsPeak: true, false
+Occupancy: Low, Mid, High

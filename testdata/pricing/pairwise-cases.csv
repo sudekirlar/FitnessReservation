@@ -1,0 +1,16 @@
+﻿CaseId,Sport,Membership,IsPeak,Occupancy
+PW-01,Zumba,Standard,true,Mid
+PW-02,Spinning,Student,false,Mid
+PW-03,Spinning,Premium,true,Low
+PW-04,HIIT,Student,true,High
+PW-05,Yoga,Standard,false,Low
+PW-06,HIIT,Premium,false,Mid
+PW-07,Yoga,Premium,true,High
+PW-08,Pilates,Student,true,Low
+PW-09,Pilates,Standard,false,High
+PW-10,Yoga,Student,true,Mid
+PW-11,Pilates,Premium,true,Mid
+PW-12,Zumba,Premium,false,High
+PW-13,Spinning,Standard,false,High
+PW-14,Zumba,Student,true,Low
+PW-15,HIIT,Standard,false,Low
