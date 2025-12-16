@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36518.9 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Pricing", "FitnessReservation.Pricing\FitnessReservation.Pricing.csproj", "{5A9D1E23-46E0-44EF-9F2F-1C9F25CC6D6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Pricing.Tests", "FitnessReservation.Pricing.Tests\FitnessReservation.Pricing.Tests.csproj", "{32DDD3AB-C790-438F-87EF-C1053CDC48DC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Çözüm Öğeleri", "Çözüm Öğeleri", "{AC80F682-3D55-C8F8-4895-A4A9EDD49434}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5A9D1E23-46E0-44EF-9F2F-1C9F25CC6D6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A9D1E23-46E0-44EF-9F2F-1C9F25CC6D6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A9D1E23-46E0-44EF-9F2F-1C9F25CC6D6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A9D1E23-46E0-44EF-9F2F-1C9F25CC6D6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32DDD3AB-C790-438F-87EF-C1053CDC48DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32DDD3AB-C790-438F-87EF-C1053CDC48DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32DDD3AB-C790-438F-87EF-C1053CDC48DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32DDD3AB-C790-438F-87EF-C1053CDC48DC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {226AE87C-BCBF-40A8-A827-7A174AEB8261}
+	EndGlobalSection
+EndGlobal
