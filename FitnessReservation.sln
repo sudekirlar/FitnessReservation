@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Tools.Pr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Api", "FitnessReservation.Api\FitnessReservation.Api.csproj", "{54C5CCA4-8A6A-4B55-AB8C-44EFFD4AFD65}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Api.Tests", "FitnessReservation.Api.Tests\FitnessReservation.Api.Tests.csproj", "{D58DBB2C-7464-4665-A2B2-2BFF3959FA52}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{54C5CCA4-8A6A-4B55-AB8C-44EFFD4AFD65}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{54C5CCA4-8A6A-4B55-AB8C-44EFFD4AFD65}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{54C5CCA4-8A6A-4B55-AB8C-44EFFD4AFD65}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D58DBB2C-7464-4665-A2B2-2BFF3959FA52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D58DBB2C-7464-4665-A2B2-2BFF3959FA52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D58DBB2C-7464-4665-A2B2-2BFF3959FA52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D58DBB2C-7464-4665-A2B2-2BFF3959FA52}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

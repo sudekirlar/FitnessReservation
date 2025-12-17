@@ -1,7 +1,14 @@
 using FitnessReservation.Pricing.Models;
 using FitnessReservation.Pricing.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 
 // Swagger / OpenAPI (dev version)
 builder.Services.AddEndpointsApiExplorer();
