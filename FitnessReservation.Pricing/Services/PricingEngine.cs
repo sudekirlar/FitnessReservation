@@ -11,12 +11,14 @@ public sealed class PricingEngine
         BasePriceProvider basePriceProvider,
         MultiplierProvider multiplierProvider)
     {
-        _basePriceProvider = basePriceProvider;
-        _multiplierProvider = multiplierProvider;
+        _basePriceProvider = basePriceProvider ?? throw new ArgumentNullException(nameof(basePriceProvider));
+        _multiplierProvider = multiplierProvider ?? throw new ArgumentNullException(nameof(multiplierProvider));
     }
 
     public PricingResult Calculate(PricingRequest request)
     {
+        if (request is null) throw new ArgumentNullException(nameof(request));
+
         var basePrice = _basePriceProvider.GetBasePrice(request.Sport);
 
         var membershipMultiplier =
