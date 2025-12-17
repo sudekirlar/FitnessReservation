@@ -1,0 +1,16 @@
+CaseId,Sport,Membership,IsPeak,Occupancy,ExpectedFinalPrice
+PW-01,Zumba,Standard,true,Mid,1636.800
+PW-02,Spinning,Student,false,Mid,1178.1000
+PW-03,Spinning,Premium,true,Low,1814.400
+PW-04,HIIT,Student,true,High,1619.25000
+PW-05,Yoga,Standard,false,Low,1250.000
+PW-06,HIIT,Premium,false,Mid,1676.400
+PW-07,Yoga,Premium,true,High,2250.0000
+PW-08,Pilates,Student,true,Low,1305.6000
+PW-09,Pilates,Standard,false,High,1600.0000
+PW-10,Yoga,Student,true,Mid,1402.5000
+PW-11,Pilates,Premium,true,Mid,2027.520
+PW-12,Zumba,Premium,false,High,1860.0000
+PW-13,Spinning,Standard,false,High,1575.0000
+PW-14,Zumba,Student,true,Low,1264.8000
+PW-15,HIIT,Standard,false,Low,1270.000
