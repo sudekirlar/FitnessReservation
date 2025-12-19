@@ -6,10 +6,10 @@ using Xunit;
 
 namespace FitnessReservation.Reservations.Tests;
 
-public sealed class ReserveSessionFoundTests
+public sealed class ReserveDuplicateTests
 {
     [Fact]
-    public void Reserve_WhenSessionExistsAndIsInFuture_ShouldSucceed()
+    public void Reserve_WhenSameMemberReservesSameSessionTwice_ShouldReturnDuplicateReservation()
     {
         // Arrange
         var now = new DateTime(2030, 1, 1, 10, 0, 0, DateTimeKind.Utc);
@@ -38,13 +38,13 @@ public sealed class ReserveSessionFoundTests
         };
 
         // Act
-        var result = sut.Reserve(request);
+        var first = sut.Reserve(request);
+        var second = sut.Reserve(request);
 
         // Assert
-        result.Success.Should().BeTrue();
-        result.Error.Should().Be(ReserveError.None);
-        result.ReservationId.Should().NotBeNull();
-        result.PriceSnapshot.Should().NotBeNull();
-        result.PriceSnapshot!.FinalPrice.Should().BeGreaterThan(0);
+        first.Success.Should().BeTrue();
+
+        second.Success.Should().BeFalse();
+        second.Error.Should().Be(ReserveError.DuplicateReservation);
     }
 }
