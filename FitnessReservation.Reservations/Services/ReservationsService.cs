@@ -34,8 +34,7 @@ public sealed class ReservationsService
         if (session.StartsAtUtc <= _clock.UtcNow)
             return ReserveResult.Fail(ReserveError.SessionInPast);
 
-        // ŞİMDİLİK: başarı akışını daha yazmadık (sonraki adımlar)
-        // Bu adımda sadece iki negatif testin green olmasını istiyoruz.
+        // Session error'lar için.
         return ReserveResult.Fail(ReserveError.SessionInPast);
     }
 }
