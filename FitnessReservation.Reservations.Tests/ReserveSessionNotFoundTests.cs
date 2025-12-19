@@ -30,6 +30,7 @@ public sealed class ReserveSessionNotFoundTests
         var result = sut.Reserve(request);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be(ReserveError.SessionNotFound);
     }
 }
