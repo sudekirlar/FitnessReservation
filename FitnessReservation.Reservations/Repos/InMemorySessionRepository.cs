@@ -1,21 +1,14 @@
-﻿using FitnessReservation.Pricing.Models;
+﻿using FitnessReservation.Reservations.Models;
 
 namespace FitnessReservation.Reservations.Repos;
 
 public sealed class InMemorySessionRepository : ISessionRepository
 {
-    public object? Get(Guid sessionId) => null; // empty store, test için yeterli şuanlık.
+    private readonly Dictionary<Guid, ClassSession> _sessions = new();
 
-    public void Upsert(ClassSession classSession)
-    {
-        throw new NotImplementedException();
-    }
-}
+    public ClassSession? Get(Guid sessionId)
+        => _sessions.TryGetValue(sessionId, out var session) ? session : null;
 
-public class ClassSession
-{
-    public SportType Sport { get; set; }
-    public DateTime StartsAtUtc { get; set; }
-    public int Capacity { get; set; }
-    public Guid SessionId { get; set; }
+    public void Upsert(ClassSession session)
+        => _sessions[session.SessionId] = session;
 }

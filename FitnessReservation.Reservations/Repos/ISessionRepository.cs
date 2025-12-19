@@ -1,6 +1,8 @@
-﻿namespace FitnessReservation.Reservations.Repos;
+﻿using FitnessReservation.Reservations.Models;
+
+namespace FitnessReservation.Reservations.Repos;
 
 public interface ISessionRepository
 {
-    object? Get(Guid sessionId);
+    ClassSession? Get(Guid sessionId);
 }

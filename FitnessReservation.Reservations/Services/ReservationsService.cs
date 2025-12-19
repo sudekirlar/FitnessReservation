@@ -7,6 +7,9 @@ namespace FitnessReservation.Reservations.Services;
 public sealed class ReservationsService
 {
     private readonly ISessionRepository _sessions;
+    private readonly IReservationRepository _reservations;
+    private readonly PricingEngine _pricing;
+    private readonly IClock _clock;
 
     public ReservationsService(
         ISessionRepository sessions,
@@ -15,13 +18,24 @@ public sealed class ReservationsService
         IClock clock)
     {
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
+        _reservations = reservations ?? throw new ArgumentNullException(nameof(reservations));
+        _pricing = pricing ?? throw new ArgumentNullException(nameof(pricing));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     public ReserveResult Reserve(ReserveRequest request)
     {
-        var session = _sessions.Get(request.SessionId);
-        if (session is null) return ReserveResult.Fail(ReserveError.SessionNotFound);
+        if (request is null) throw new ArgumentNullException(nameof(request));
 
-        throw new NotImplementedException(); 
+        var session = _sessions.Get(request.SessionId);
+        if (session is null)
+            return ReserveResult.Fail(ReserveError.SessionNotFound);
+
+        if (session.StartsAtUtc <= _clock.UtcNow)
+            return ReserveResult.Fail(ReserveError.SessionInPast);
+
+        // ŞİMDİLİK: başarı akışını daha yazmadık (sonraki adımlar)
+        // Bu adımda sadece iki negatif testin green olmasını istiyoruz.
+        return ReserveResult.Fail(ReserveError.SessionInPast);
     }
 }
