@@ -1,4 +1,5 @@
-﻿using FitnessReservation.Pricing.Services;
+﻿using FitnessReservation.Pricing.Models;
+using FitnessReservation.Pricing.Services;
 using FitnessReservation.Reservations.Models;
 using FitnessReservation.Reservations.Repos;
 
@@ -34,7 +35,15 @@ public sealed class ReservationsService
         if (session.StartsAtUtc <= _clock.UtcNow)
             return ReserveResult.Fail(ReserveError.SessionInPast);
 
-        // Session error'lar için.
-        return ReserveResult.Fail(ReserveError.SessionInPast);
+        // ✅ minimal success path (capacity/duplicate sonra)
+        var price = _pricing.Calculate(new PricingRequest
+        {
+            Sport = session.Sport,
+            Membership = request.Membership,
+            IsPeak = false,
+            Occupancy = OccupancyLevel.Low
+        });
+
+        return ReserveResult.Ok(Guid.NewGuid(), price);
     }
 }
