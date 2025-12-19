@@ -23,7 +23,6 @@ public sealed class ReservationsService
         _pricing = pricing ?? throw new ArgumentNullException(nameof(pricing));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
-
     public ReserveResult Reserve(ReserveRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
@@ -35,7 +34,10 @@ public sealed class ReservationsService
         if (session.StartsAtUtc <= _clock.UtcNow)
             return ReserveResult.Fail(ReserveError.SessionInPast);
 
-        // ✅ minimal success path (capacity/duplicate sonra)
+        // duplicate check
+        if (_reservations.Exists(request.MemberId, request.SessionId))
+            return ReserveResult.Fail(ReserveError.DuplicateReservation);
+
         var price = _pricing.Calculate(new PricingRequest
         {
             Sport = session.Sport,
@@ -44,6 +46,9 @@ public sealed class ReservationsService
             Occupancy = OccupancyLevel.Low
         });
 
+        _reservations.Add(request.MemberId, request.SessionId);
+
         return ReserveResult.Ok(Guid.NewGuid(), price);
     }
+
 }

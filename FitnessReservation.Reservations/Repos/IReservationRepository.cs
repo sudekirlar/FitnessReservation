@@ -2,5 +2,6 @@
 
 public interface IReservationRepository
 {
-    // şimdilik boş
+    bool Exists(string memberId, Guid sessionId);
+    void Add(string memberId, Guid sessionId);
 }
