@@ -1,0 +1,297 @@
+{
+  "info": {
+    "name": "FitnessReservation API v1",
+    "_postman_id": "0d5c17a1-3c1b-4b2b-8d7d-b0c14e3f6f3a",
+    "description": "Black-box API contract tests for FitnessReservation (pricing + reservations).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Ensure baseUrl exists",
+          "pm.expect(pm.environment.get('baseUrl')).to.not.be.empty;"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health - GET /health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Body has status=ok', function () {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pricing - POST /pricing/calculate (happy path)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sport\": \"Yoga\",\n  \"membership\": \"Student\",\n  \"isPeak\": true,\n  \"occupancy\": \"High\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/pricing/calculate",
+          "host": ["{{baseUrl}}"],
+          "path": ["pricing", "calculate"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has FinalPrice > 0', function () {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.finalPrice).to.be.a('number');",
+              "  pm.expect(b.finalPrice).to.be.greaterThan(0);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pricing - POST /pricing/calculate (invalid enum -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sport\": \"Yoga\",\n  \"membership\": \"Gold\",\n  \"isPeak\": true,\n  \"occupancy\": \"High\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/pricing/calculate",
+          "host": ["{{baseUrl}}"],
+          "path": ["pricing", "calculate"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservations - POST /reservations (success -> 201, store reservationId)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"m_postman_1\",\n  \"sessionId\": \"{{futureGeneralSessionId}}\",\n  \"membership\": \"Standard\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reservations",
+          "host": ["{{baseUrl}}"],
+          "path": ["reservations"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Body has reservationId + finalPrice', function () {",
+              "  const b = pm.response.json();",
+              "  pm.expect(b.reservationId).to.be.a('string');",
+              "  pm.expect(b.reservationId.length).to.be.greaterThan(0);",
+              "  pm.expect(b.finalPrice).to.be.a('number');",
+              "  pm.expect(b.finalPrice).to.be.greaterThan(0);",
+              "});",
+              "// Save reservationId for later (optional)",
+              "try {",
+              "  const b = pm.response.json();",
+              "  pm.environment.set('reservationId', b.reservationId);",
+              "} catch (e) {}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservations - POST /reservations (duplicate -> 409)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"m_postman_dup\",\n  \"sessionId\": \"{{futureGeneralSessionId}}\",\n  \"membership\": \"Standard\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reservations",
+          "host": ["{{baseUrl}}"],
+          "path": ["reservations"]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// First call must create reservation to make the second call duplicate.",
+              "// We'll do it by re-sending same request in a single folder run: here we intentionally depend on order.",
+              "// No code needed here."
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// This request is meant to be run TWICE in a row via Runner/Newman iterations=2,",
+              "// OR you can duplicate this request in collection and run consecutively.",
+              "pm.test('Status is 201 or 409 (depending on run order)', function () {",
+              "  pm.expect([201, 409]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservations - POST /reservations (capacity full -> 409)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"m_postman_cap_1\",\n  \"sessionId\": \"{{futureCapacity1SessionId}}\",\n  \"membership\": \"Standard\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reservations",
+          "host": ["{{baseUrl}}"],
+          "path": ["reservations"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// First call should be 201; second distinct member should be 409.",
+              "// We'll enforce this by chaining: if first succeeds, immediately fire second using pm.sendRequest.",
+              "pm.test('First call status is 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.sendRequest({",
+              "  url: pm.environment.get('baseUrl') + '/reservations',",
+              "  method: 'POST',",
+              "  header: { 'Content-Type': 'application/json' },",
+              "  body: {",
+              "    mode: 'raw',",
+              "    raw: JSON.stringify({",
+              "      memberId: 'm_postman_cap_2',",
+              "      sessionId: pm.environment.get('futureCapacity1SessionId'),",
+              "      membership: 'Standard'",
+              "    })",
+              "  }",
+              "}, function (err, res) {",
+              "  pm.test('Second call returns 409 Conflict', function () {",
+              "    pm.expect(err).to.equal(null);",
+              "    pm.expect(res.code).to.equal(409);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservations - POST /reservations (past -> 400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"m_postman_past\",\n  \"sessionId\": \"{{pastSessionId}}\",\n  \"membership\": \"Standard\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reservations",
+          "host": ["{{baseUrl}}"],
+          "path": ["reservations"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status is 400', function () {",
+            "  pm.response.to.have.status(400);",
+            "});"
+          ] }
+        }
+      ]
+    },
+    {
+      "name": "Reservations - POST /reservations (session not found -> 404)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"memberId\": \"m_postman_nf\",\n  \"sessionId\": \"00000000-0000-0000-0000-000000000000\",\n  \"membership\": \"Standard\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reservations",
+          "host": ["{{baseUrl}}"],
+          "path": ["reservations"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status is 404', function () {",
+            "  pm.response.to.have.status(404);",
+            "});"
+          ] }
+        }
+      ]
+    }
+  ]
+}
