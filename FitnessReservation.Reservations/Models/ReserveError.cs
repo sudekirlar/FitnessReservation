@@ -3,5 +3,6 @@
 public enum ReserveError
 {
     None = 0,
-    SessionNotFound = 1
+    SessionNotFound = 1,
+    SessionInPast = 2
 }
