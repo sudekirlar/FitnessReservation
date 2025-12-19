@@ -15,7 +15,6 @@ public sealed class ReservationPropertyTests
     private static readonly DateTime Now =
         new DateTime(2030, 1, 1, 10, 0, 0, DateTimeKind.Utc);
 
-    // Capacity küçük olsun ki test hızlı ve deterministik kalsın
     public static Arbitrary<int> Capacity()
         => Arb.From(Gen.Choose(1, 5));
 
