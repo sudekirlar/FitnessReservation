@@ -48,3 +48,34 @@ jobs:
         with:
           name: coverage-report
           path: coverage-report
+
+      # -------------------------
+      # Newman (API contract tests)
+      # -------------------------
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Start API (background)
+        run: |
+          dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj \
+            --urls http://127.0.0.1:7001 &
+          sleep 8
+
+      - name: Run Newman (JUnit)
+        run: |
+          newman run postman/FitnessReservation.postman_collection.json \
+            -e postman/FitnessReservation.local.postman_environment.json \
+            --reporters cli,junit \
+            --reporter-junit-export postman/newman-junit.xml
+
+      - name: Upload Newman JUnit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-junit
+          path: postman/newman-junit.xml

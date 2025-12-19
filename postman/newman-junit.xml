@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="FitnessReservation API v1" tests="9" time="0.195">
+  <testsuite name="__TEST__ Reset - POST /__test/reset" id="63729468-f35a-4f7d-b153-fe24b7274bd2" timestamp="2025-12-19T21:42:26.848Z" tests="1" failures="0" errors="0" time="0.110">
+    <testcase name="Status is 200" time="0.110" classname="TestResetPostTestReset"/>
+  </testsuite>
+  <testsuite name="Health - GET /health" id="86e433b0-fde6-4385-a826-3b036c8e6911" timestamp="2025-12-19T21:42:26.848Z" tests="2" failures="0" errors="0" time="0.012">
+    <testcase name="Status is 200" time="0.012" classname="HealthGetHealth"/>
+    <testcase name="Body has status=ok" time="0.012" classname="HealthGetHealth"/>
+  </testsuite>
+  <testsuite name="Pricing - POST /pricing/calculate (happy path)" id="180dbeea-1406-4e39-a921-854c06be1c08" timestamp="2025-12-19T21:42:26.848Z" tests="2" failures="0" errors="0" time="0.018">
+    <testcase name="Status is 200" time="0.018" classname="PricingPostPricingCalculateHappyPath"/>
+    <testcase name="Has FinalPrice > 0" time="0.018" classname="PricingPostPricingCalculateHappyPath"/>
+  </testsuite>
+  <testsuite name="Pricing - POST /pricing/calculate (invalid enum -> 400)" id="6c26c2f3-af0c-44bb-bd72-5e413c129e39" timestamp="2025-12-19T21:42:26.848Z" tests="1" failures="0" errors="0" time="0.029">
+    <testcase name="Status is 400" time="0.029" classname="PricingPostPricingCalculateInvalidEnum400"/>
+  </testsuite>
+  <testsuite name="Reservations - POST /reservations (success -> 201, store reservationId)" id="910de8ca-04af-449a-a29f-1ffbb194657e" timestamp="2025-12-19T21:42:26.848Z" tests="2" failures="0" errors="0" time="0.013">
+    <testcase name="Status is 201" time="0.013" classname="ReservationsPostReservationsSuccess201StoreReservationId"/>
+    <testcase name="Body has reservationId + finalPrice" time="0.013" classname="ReservationsPostReservationsSuccess201StoreReservationId"/>
+  </testsuite>
+  <testsuite name="Reservations - POST /reservations (duplicate -> 409)" id="12428d4a-f83d-4220-a82c-364fa0dd11a7" timestamp="2025-12-19T21:42:26.848Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="Status is 201 or 409 (depending on run order)" time="0.004" classname="ReservationsPostReservationsDuplicate409"/>
+  </testsuite>
+  <testsuite name="Reservations - POST /reservations (capacity full -> 409)" id="0a840186-b091-4922-a027-e555a9862f5d" timestamp="2025-12-19T21:42:26.848Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="First call status is 201" time="0.004" classname="ReservationsPostReservationsCapacityFull409"/>
+    <testcase name="Second call returns 409 Conflict" time="0.004" classname="ReservationsPostReservationsCapacityFull409"/>
+  </testsuite>
+  <testsuite name="Reservations - POST /reservations (past -> 400)" id="a0f60f9b-f0b3-47bb-a23c-94ed29b6724b" timestamp="2025-12-19T21:42:26.848Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="Status is 400" time="0.003" classname="ReservationsPostReservationsPast400"/>
+  </testsuite>
+  <testsuite name="Reservations - POST /reservations (session not found -> 404)" id="43b7366a-4fa5-4b36-82cb-dca5bb51749e" timestamp="2025-12-19T21:42:26.848Z" tests="1" failures="0" errors="0" time="0.002">
+    <testcase name="Status is 404" time="0.002" classname="ReservationsPostReservationsSessionNotFound404"/>
+  </testsuite>
+</testsuites>
