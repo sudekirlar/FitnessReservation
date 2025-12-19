@@ -33,6 +33,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    app.MapPost("/__test/reset", (IReservationRepository reservations) =>
+    {
+        if (reservations is InMemoryReservationRepository mem)
+        {
+            mem.Clear();
+            return Results.Ok(new { status = "reset-ok" });
+        }
+
+        return Results.Problem("Reset is only supported for InMemoryReservationRepository.");
+    });
 }
 
 var sessionRepo = app.Services.GetRequiredService<InMemorySessionRepository>();

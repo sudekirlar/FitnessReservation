@@ -25,4 +25,10 @@ public sealed class InMemoryReservationRepository : IReservationRepository
                 throw new InvalidOperationException("Duplicate reservation detected.");
         }
     }
+
+    public void Clear()
+    {
+        lock (_gate)
+            _keys.Clear();
+    }
 }
