@@ -1,0 +1,16 @@
+{
+  "stryker-config": {
+    "project": "FitnessReservation.Pricing/FitnessReservation.Pricing.csproj",
+    "test-projects": [
+      "FitnessReservation.Pricing.Tests/FitnessReservation.Pricing.Tests.csproj"
+    ],
+    "reporters": [ "html", "progress" ],
+    "verbosity": "info",
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 80
+    },
+    "ignore-mutations": [ "string" ]
+  }
+}
