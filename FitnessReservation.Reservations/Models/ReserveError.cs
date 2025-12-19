@@ -6,4 +6,5 @@ public enum ReserveError
     SessionNotFound = 1,
     SessionInPast = 2,
     DuplicateReservation = 3,
+    CapacityFull = 4,
 }
