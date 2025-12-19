@@ -38,6 +38,12 @@ public sealed class ReservationsService
         if (_reservations.Exists(request.MemberId, request.SessionId))
             return ReserveResult.Fail(ReserveError.DuplicateReservation);
 
+        // capacity check
+        var reservedCount = _reservations.CountBySession(request.SessionId);
+        if (reservedCount >= session.Capacity)
+            return ReserveResult.Fail(ReserveError.CapacityFull);
+
+
         var price = _pricing.Calculate(new PricingRequest
         {
             Sport = session.Sport,

@@ -11,6 +11,12 @@ public sealed class InMemoryReservationRepository : IReservationRepository
             return _keys.Contains((memberId, sessionId));
     }
 
+    public int CountBySession(Guid sessionId)
+    {
+        lock (_gate)
+            return _keys.Count(x => x.SessionId == sessionId);
+    }
+
     public void Add(string memberId, Guid sessionId)
     {
         lock (_gate)
