@@ -46,12 +46,9 @@ jobs:
       - name: Upload coverage report artifact
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-report-${{ github.run_id }}
           path: coverage-report
-
-      # -------------------------
-      # Newman (API contract tests)
-      # -------------------------
+          retention-days: 7
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,21 +58,40 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Start API (background)
+      - name: Start API (background) and wait for /health
         run: |
-          dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj \
-            --urls http://127.0.0.1:7001 &
-          sleep 8
+          dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj --urls http://127.0.0.1:7001 > api.log 2>&1 &
+          for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:7001/health > /dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not start in time"
+          echo "---- api.log ----"
+          cat api.log
+          exit 1
 
       - name: Run Newman (JUnit)
         run: |
+          mkdir -p postman/out
           newman run postman/FitnessReservation.postman_collection.json \
             -e postman/FitnessReservation.local.postman_environment.json \
             --reporters cli,junit \
-            --reporter-junit-export postman/newman-junit.xml
+            --reporter-junit-export postman/out/newman-junit-${{ github.run_id }}.xml
 
       - name: Upload Newman JUnit report
         uses: actions/upload-artifact@v4
         with:
-          name: newman-junit
-          path: postman/newman-junit.xml
+          name: newman-junit-${{ github.run_id }}
+          path: postman/out/newman-junit-${{ github.run_id }}.xml
+          retention-days: 7
+
+      - name: Upload API log (only if job fails)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log-${{ github.run_id }}
+          path: api.log
+          retention-days: 7
