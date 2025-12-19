@@ -41,9 +41,8 @@ bld/
 # Visual Studio 2017 auto generated files
 Generated\ Files/
 
-# Newman
-postman/newman-report.html
-coverage-report/
+postman/*.html
+
 
 
 # MSTest test Results
