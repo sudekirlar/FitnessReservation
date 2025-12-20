@@ -1,4 +1,5 @@
-﻿using FitnessReservation.Pricing.Models;
+﻿using FitnessReservation.Api.Auth;
+using FitnessReservation.Pricing.Models;
 using FitnessReservation.Pricing.Services;
 using FitnessReservation.Reservations.Models;
 using FitnessReservation.Reservations.Repos;
@@ -15,10 +16,12 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Pricing
 builder.Services.AddSingleton<BasePriceProvider>();
 builder.Services.AddSingleton<MultiplierProvider>();
 builder.Services.AddSingleton<PricingEngine>();
 
+// Reservations
 builder.Services.AddSingleton<InMemorySessionRepository>();
 builder.Services.AddSingleton<ISessionRepository>(sp =>
     sp.GetRequiredService<InMemorySessionRepository>());
@@ -30,7 +33,32 @@ builder.Services.AddSingleton<ReservationsService>();
 builder.Services.AddSingleton<IPeakHourPolicy, PeakHourPolicy>();
 builder.Services.AddSingleton<IOccupancyClassifier, OccupancyClassifier>();
 
+builder.Services.AddDistributedMemoryCache();
+
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "FR_SID";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+});
+
+builder.Services.AddSingleton<IPasswordService, PasswordService>();
+builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
+
+builder.Services.AddSingleton<IMembershipCodeRepository>(_ =>
+    new InMemoryMembershipCodeRepository(new[]
+    {
+        new MembershipCode { Code = "STU-2025", MembershipType = MembershipType.Student, IsActive = true },
+        new MembershipCode { Code = "PRM-2025", MembershipType = MembershipType.Premium, IsActive = true },
+        new MembershipCode { Code = "STD-OPEN", MembershipType = MembershipType.Standard, IsActive = true },
+    }));
+
 var app = builder.Build();
+
+app.UseSession();
 
 if (app.Environment.IsDevelopment())
 {
@@ -89,6 +117,89 @@ sessionRepo.Upsert(new ClassSession
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
+app.MapPost("/auth/register", (
+    RegisterRequest body,
+    IMemberRepository members,
+    IMembershipCodeRepository codes,
+    IPasswordService passwords) =>
+{
+    if (string.IsNullOrWhiteSpace(body.Username) || string.IsNullOrWhiteSpace(body.Password))
+        return Results.BadRequest(new { error = "InvalidInput" });
+
+    if (body.MembershipType is MembershipType.Student or MembershipType.Premium)
+    {
+        if (string.IsNullOrWhiteSpace(body.MembershipCode))
+            return Results.BadRequest(new { error = "MissingMembershipCode" });
+
+        var code = codes.Get(body.MembershipCode);
+        if (code is null || !code.IsActive || code.UsedByMemberId is not null || code.MembershipType != body.MembershipType)
+            return Results.BadRequest(new { error = "InvalidMembershipCode" });
+    }
+
+    var member = new Member
+    {
+        MemberId = Guid.NewGuid(),
+        Username = body.Username,
+        PasswordHash = passwords.Hash(body.Password),
+        MembershipType = body.MembershipType
+    };
+
+    try
+    {
+        members.Add(member);
+    }
+    catch (InvalidOperationException ex) when (ex.Message == "UsernameTaken")
+    {
+        return Results.Conflict(new { error = "UsernameTaken" });
+    }
+
+    if (body.MembershipType is MembershipType.Student or MembershipType.Premium)
+        codes.MarkUsed(body.MembershipCode!, member.MemberId);
+
+    return Results.Created($"/members/{member.MemberId}",
+        new RegisterResponse(member.MemberId, member.Username, member.MembershipType));
+})
+.WithName("Register");
+
+app.MapPost("/auth/login", (
+    HttpContext ctx,
+    LoginRequest body,
+    IMemberRepository members,
+    IPasswordService passwords) =>
+{
+    var member = members.FindByUsername(body.Username);
+    if (member is null)
+        return Results.Unauthorized();
+
+    if (!passwords.Verify(member.PasswordHash, body.Password))
+        return Results.Unauthorized();
+
+    AuthSession.SignIn(ctx, member.MemberId);
+
+    return Results.Ok(new LoginResponse(member.MemberId, member.Username, member.MembershipType));
+})
+.WithName("Login");
+
+app.MapPost("/auth/logout", (HttpContext ctx) =>
+{
+    AuthSession.SignOut(ctx);
+    return Results.Ok(new { status = "logged-out" });
+})
+.WithName("Logout");
+
+app.MapGet("/me", (HttpContext ctx, IMemberRepository members) =>
+{
+    if (!AuthSession.TryGetMemberId(ctx, out var memberId))
+        return Results.Unauthorized();
+
+    var member = members.Get(memberId);
+    if (member is null)
+        return Results.Unauthorized();
+
+    return Results.Ok(new MeResponse(member.MemberId, member.Username, member.MembershipType));
+})
+.WithName("Me");
+
 app.MapPost("/pricing/calculate", (PricingRequest request, PricingEngine engine) =>
 {
     var result = engine.Calculate(request);
@@ -143,7 +254,6 @@ app.MapGet("/sessions", (
 })
 .WithName("ListSessions");
 
-
 app.MapPost("/reservations", (
     CreateReservationRequest body,
     ReservationsService service) =>
@@ -196,3 +306,26 @@ public sealed record SessionListItem(
     bool IsPeak,
     OccupancyLevel OccupancyLevel,
     FitnessReservation.Pricing.Models.PricingResult Price);
+
+public sealed record RegisterRequest(
+    string Username,
+    string Password,
+    MembershipType MembershipType,
+    string? MembershipCode);
+
+public sealed record RegisterResponse(
+    Guid MemberId,
+    string Username,
+    MembershipType MembershipType);
+
+public sealed record LoginRequest(string Username, string Password);
+
+public sealed record LoginResponse(
+    Guid MemberId,
+    string Username,
+    MembershipType MembershipType);
+
+public sealed record MeResponse(
+    Guid MemberId,
+    string Username,
+    MembershipType MembershipType);
