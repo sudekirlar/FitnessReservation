@@ -11,11 +11,19 @@
       "script": {
         "type": "text/javascript",
         "exec": [
+          "// Ensure baseUrl exists",
           "pm.expect(pm.environment.get('baseUrl')).to.not.be.empty;",
-          "// random usernames per run",
-          "const rand = Math.floor(Math.random()*1e9).toString();",
-          "pm.environment.set('u1', 'u1_' + rand);",
-          "pm.environment.set('u2', 'u2_' + rand);"
+          "",
+          "// Generate usernames ONCE per run (do NOT regenerate on each request)",
+          "let seed = pm.environment.get('runSeed');",
+          "if (!seed) {",
+          "  seed = (Date.now().toString() + '_' + Math.floor(Math.random() * 1e9).toString());",
+          "  pm.environment.set('runSeed', seed);",
+          "  pm.environment.set('u1', 'u1_' + seed);",
+          "  pm.environment.set('u2', 'u2_' + seed);",
+          "}",
+          "",
+          "// Passwords are constant in env (p1/p2), keep them as-is"
         ]
       }
     }
@@ -42,9 +50,7 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-            ]
+            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
           }
         }
       ]
@@ -72,7 +78,6 @@
         }
       ]
     },
-
     {
       "name": "Auth - Register user1 - POST /auth/register",
       "request": {
@@ -98,9 +103,7 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });"
-            ]
+            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
           }
         }
       ]
@@ -130,9 +133,7 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-            ]
+            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
           }
         }
       ]
@@ -160,7 +161,6 @@
         }
       ]
     },
-
     {
       "name": "Sessions - GET /sessions (Yoga window)",
       "request": {
@@ -199,7 +199,6 @@
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (success -> 201)",
       "request": {
@@ -233,7 +232,6 @@
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (duplicate -> 409)",
       "request": {
@@ -259,14 +257,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 409', function () { pm.response.to.have.status(409); });"
-            ]
+            "exec": [ "pm.test('Status is 409', function () { pm.response.to.have.status(409); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (past -> 400)",
       "request": {
@@ -292,14 +287,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 400', function () { pm.response.to.have.status(400); });"
-            ]
+            "exec": [ "pm.test('Status is 400', function () { pm.response.to.have.status(400); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (session not found -> 404)",
       "request": {
@@ -325,14 +317,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 404', function () { pm.response.to.have.status(404); });"
-            ]
+            "exec": [ "pm.test('Status is 404', function () { pm.response.to.have.status(404); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (capacity=1 user1 -> 201)",
       "request": {
@@ -358,14 +347,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });"
-            ]
+            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Auth - Logout user1 - POST /auth/logout",
       "request": {
@@ -381,14 +367,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-            ]
+            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Auth - Register user2 - POST /auth/register",
       "request": {
@@ -414,9 +397,7 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });"
-            ]
+            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
           }
         }
       ]
@@ -446,14 +427,11 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-            ]
+            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
           }
         }
       ]
     },
-
     {
       "name": "Reservations - POST /reservations (capacity full user2 -> 409)",
       "request": {
@@ -479,9 +457,7 @@
           "listen": "test",
           "script": {
             "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 409', function () { pm.response.to.have.status(409); });"
-            ]
+            "exec": [ "pm.test('Status is 409', function () { pm.response.to.have.status(409); });" ]
           }
         }
       ]
