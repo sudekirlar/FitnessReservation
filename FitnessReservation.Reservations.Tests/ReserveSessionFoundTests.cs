@@ -11,7 +11,6 @@ public sealed class ReserveSessionFoundTests
     [Fact]
     public void Reserve_WhenSessionExistsAndIsInFuture_ShouldSucceed()
     {
-        // Arrange
         var now = new DateTime(2030, 1, 1, 10, 0, 0, DateTimeKind.Utc);
         var sessionId = Guid.NewGuid();
 
@@ -21,26 +20,26 @@ public sealed class ReserveSessionFoundTests
             SessionId = sessionId,
             Sport = FitnessReservation.Pricing.Models.SportType.Yoga,
             StartsAtUtc = now.AddHours(2),
-            Capacity = 10
+            Capacity = 10,
+            InstructorName = "Elif Hoca"
         });
 
         var reservations = new InMemoryReservationRepository();
-        var clock = new FakeClock(now);
-        var pricing = PricingTestFactory.Engine();
+        var sut = new ReservationsService(
+            sessions,
+            reservations,
+            PricingTestFactory.Engine(),
+            new FakeClock(now),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
 
-        var sut = new ReservationsService(sessions, reservations, pricing, clock);
-
-        var request = new ReserveRequest
+        var result = sut.Reserve(new ReserveRequest
         {
             MemberId = "m1",
             SessionId = sessionId,
             Membership = FitnessReservation.Pricing.Models.MembershipType.Standard
-        };
+        });
 
-        // Act
-        var result = sut.Reserve(request);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Error.Should().Be(ReserveError.None);
         result.ReservationId.Should().NotBeNull();

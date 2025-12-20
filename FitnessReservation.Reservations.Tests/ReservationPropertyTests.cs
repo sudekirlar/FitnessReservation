@@ -21,7 +21,6 @@ public sealed class ReservationPropertyTests
     [Property(Arbitrary = new[] { typeof(ReservationPropertyTests) }, MaxTest = 100)]
     public void Active_reservations_should_never_exceed_capacity(int capacity)
     {
-        // Arrange
         var sessionId = Guid.NewGuid();
 
         var sessions = new InMemorySessionRepository();
@@ -29,15 +28,14 @@ public sealed class ReservationPropertyTests
         {
             SessionId = sessionId,
             Sport = FitnessReservation.Pricing.Models.SportType.Yoga,
-            StartsAtUtc = Now.AddHours(2), // always future
-            Capacity = capacity
+            StartsAtUtc = Now.AddHours(2),
+            Capacity = capacity,
+            InstructorName = "Elif Hoca"
         });
 
         var reservations = new InMemoryReservationRepository();
         var sut = BuildSut(sessions, reservations);
 
-        // Act
-        // capacity'den fazla sayıda farklı member deniyoruz (duplicate olmasın diye)
         var attempts = capacity + 10;
         var results = Enumerable.Range(0, attempts)
             .Select(i => sut.Reserve(new ReserveRequest
@@ -50,7 +48,6 @@ public sealed class ReservationPropertyTests
 
         var successCount = results.Count(r => r.Success);
 
-        // Assert
         successCount.Should().BeLessThanOrEqualTo(capacity);
         results.Skip(capacity).Any(r => r.Error == ReserveError.CapacityFull).Should().BeTrue();
     }
@@ -59,8 +56,12 @@ public sealed class ReservationPropertyTests
         InMemorySessionRepository sessions,
         InMemoryReservationRepository reservations)
     {
-        var clock = new FakeClock(Now);
-        var pricing = PricingTestFactory.Engine();
-        return new ReservationsService(sessions, reservations, pricing, clock);
+        return new ReservationsService(
+            sessions,
+            reservations,
+            PricingTestFactory.Engine(),
+            new FakeClock(Now),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
     }
 }

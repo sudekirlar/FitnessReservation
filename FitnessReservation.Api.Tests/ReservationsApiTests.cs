@@ -21,7 +21,6 @@ public sealed class ReservationsApiTests : IAsyncLifetime
 
     public Task InitializeAsync()
     {
-        // Her teste yeni instance.
         _factory = new CustomWebApplicationFactory();
         _client = _factory.CreateClient();
         return Task.CompletedTask;
@@ -34,16 +33,25 @@ public sealed class ReservationsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Post_Reservations_WithoutLogin_ShouldReturn401()
+    {
+        var res = await _client.PostAsJsonAsync("/reservations", new
+        {
+            sessionId = FutureGeneralSessionId
+        });
+
+        res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task Post_Reservations_Success_ShouldReturn201()
     {
-        var req = new
-        {
-            memberId = "m1",
-            sessionId = FutureGeneralSessionId,
-            membership = "Standard"
-        };
+        await RegisterAndLoginStandard("u1");
 
-        var res = await _client.PostAsJsonAsync("/reservations", req);
+        var res = await _client.PostAsJsonAsync("/reservations", new
+        {
+            sessionId = FutureGeneralSessionId
+        });
 
         res.StatusCode.Should().Be(HttpStatusCode.Created, await res.Content.ReadAsStringAsync());
     }
@@ -51,14 +59,12 @@ public sealed class ReservationsApiTests : IAsyncLifetime
     [Fact]
     public async Task Post_Reservations_SessionNotFound_ShouldReturn404()
     {
-        var req = new
-        {
-            memberId = "m1",
-            sessionId = Guid.NewGuid(),
-            membership = "Standard"
-        };
+        await RegisterAndLoginStandard("u1");
 
-        var res = await _client.PostAsJsonAsync("/reservations", req);
+        var res = await _client.PostAsJsonAsync("/reservations", new
+        {
+            sessionId = Guid.NewGuid()
+        });
 
         res.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -66,14 +72,12 @@ public sealed class ReservationsApiTests : IAsyncLifetime
     [Fact]
     public async Task Post_Reservations_SessionInPast_ShouldReturn400()
     {
-        var req = new
-        {
-            memberId = "m1",
-            sessionId = PastSessionId,
-            membership = "Standard"
-        };
+        await RegisterAndLoginStandard("u1");
 
-        var res = await _client.PostAsJsonAsync("/reservations", req);
+        var res = await _client.PostAsJsonAsync("/reservations", new
+        {
+            sessionId = PastSessionId
+        });
 
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -81,38 +85,51 @@ public sealed class ReservationsApiTests : IAsyncLifetime
     [Fact]
     public async Task Post_Reservations_Duplicate_ShouldReturn409()
     {
-        var req = new
-        {
-            memberId = "m1",
-            sessionId = FutureGeneralSessionId,
-            membership = "Standard"
-        };
+        await RegisterAndLoginStandard("u1");
 
-        var first = await _client.PostAsJsonAsync("/reservations", req);
+        var first = await _client.PostAsJsonAsync("/reservations", new { sessionId = FutureGeneralSessionId });
         first.StatusCode.Should().Be(HttpStatusCode.Created, await first.Content.ReadAsStringAsync());
 
-        var second = await _client.PostAsJsonAsync("/reservations", req);
+        var second = await _client.PostAsJsonAsync("/reservations", new { sessionId = FutureGeneralSessionId });
         second.StatusCode.Should().Be(HttpStatusCode.Conflict, await second.Content.ReadAsStringAsync());
     }
 
     [Fact]
-    public async Task Post_Reservations_CapacityFull_ShouldReturn409()
+    public async Task Post_Reservations_CapacityFull_ShouldReturn409_ForSecondUser()
     {
-        // capacity=1 olan session'a iki farklı member
-        var r1 = await _client.PostAsJsonAsync("/reservations", new
-        {
-            memberId = "m1",
-            sessionId = FutureCapacity1SessionId,
-            membership = "Standard"
-        });
+        // user1 reserves
+        await RegisterAndLoginStandard("u1");
+        var r1 = await _client.PostAsJsonAsync("/reservations", new { sessionId = FutureCapacity1SessionId });
         r1.StatusCode.Should().Be(HttpStatusCode.Created, await r1.Content.ReadAsStringAsync());
 
-        var r2 = await _client.PostAsJsonAsync("/reservations", new
-        {
-            memberId = "m2",
-            sessionId = FutureCapacity1SessionId,
-            membership = "Standard"
-        });
+        // user2 reserves same capacity=1 session => 409
+        await LogoutIfAny();
+        await RegisterAndLoginStandard("u2");
+
+        var r2 = await _client.PostAsJsonAsync("/reservations", new { sessionId = FutureCapacity1SessionId });
         r2.StatusCode.Should().Be(HttpStatusCode.Conflict, await r2.Content.ReadAsStringAsync());
+    }
+
+    private async Task RegisterAndLoginStandard(string prefix)
+    {
+        var username = $"{prefix}_{Guid.NewGuid():N}";
+        var password = "P@ssw0rd-1";
+
+        var reg = await _client.PostAsJsonAsync("/auth/register", new
+        {
+            username,
+            password,
+            membershipType = "Standard",
+            membershipCode = (string?)null
+        });
+        reg.StatusCode.Should().Be(HttpStatusCode.Created, await reg.Content.ReadAsStringAsync());
+
+        var login = await _client.PostAsJsonAsync("/auth/login", new { username, password });
+        login.StatusCode.Should().Be(HttpStatusCode.OK, await login.Content.ReadAsStringAsync());
+    }
+
+    private async Task LogoutIfAny()
+    {
+        _ = await _client.PostAsync("/auth/logout", content: null);
     }
 }

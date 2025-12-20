@@ -24,12 +24,26 @@ public sealed class SessionsGetApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Get_Sessions_ShouldReturn200_AndItemsWithPrice()
+    public async Task Get_Sessions_WithoutLogin_ShouldReturn401()
     {
         var from = DateTime.UtcNow.AddHours(-3).ToString("O");
         var to = DateTime.UtcNow.AddHours(3).ToString("O");
 
-        var url = $"/sessions?sport=Yoga&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}&membership=Standard";
+        var url = $"/sessions?sport=Yoga&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}";
+        var res = await _client.GetAsync(url);
+
+        res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Get_Sessions_WithLogin_ShouldReturn200_AndItemsWithPrice()
+    {
+        await RegisterAndLoginStandard();
+
+        var from = DateTime.UtcNow.AddHours(-3).ToString("O");
+        var to = DateTime.UtcNow.AddHours(3).ToString("O");
+
+        var url = $"/sessions?sport=Yoga&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}";
 
         var res = await _client.GetAsync(url);
 
@@ -48,14 +62,33 @@ public sealed class SessionsGetApiTests : IAsyncLifetime
     [Fact]
     public async Task Get_Sessions_WithInvalidDateRange_ShouldReturn400()
     {
+        await RegisterAndLoginStandard();
+
         var from = DateTime.UtcNow.ToString("O");
         var to = DateTime.UtcNow.AddHours(-1).ToString("O");
 
-        var url = $"/sessions?sport=Yoga&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}&membership=Standard";
-
+        var url = $"/sessions?sport=Yoga&from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}";
         var res = await _client.GetAsync(url);
 
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private async Task RegisterAndLoginStandard()
+    {
+        var username = $"u_{Guid.NewGuid():N}";
+        var password = "P@ssw0rd-1";
+
+        var reg = await _client.PostAsJsonAsync("/auth/register", new
+        {
+            username,
+            password,
+            membershipType = "Standard",
+            membershipCode = (string?)null
+        });
+        reg.StatusCode.Should().Be(HttpStatusCode.Created, await reg.Content.ReadAsStringAsync());
+
+        var login = await _client.PostAsJsonAsync("/auth/login", new { username, password });
+        login.StatusCode.Should().Be(HttpStatusCode.OK, await login.Content.ReadAsStringAsync());
     }
 
     private sealed class SessionItem

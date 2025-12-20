@@ -11,7 +11,6 @@ public sealed class ReserveDuplicateTests
     [Fact]
     public void Reserve_WhenSameMemberReservesSameSessionTwice_ShouldReturnDuplicateReservation()
     {
-        // Arrange
         var now = new DateTime(2030, 1, 1, 10, 0, 0, DateTimeKind.Utc);
         var sessionId = Guid.NewGuid();
 
@@ -21,29 +20,30 @@ public sealed class ReserveDuplicateTests
             SessionId = sessionId,
             Sport = FitnessReservation.Pricing.Models.SportType.Yoga,
             StartsAtUtc = now.AddHours(2),
-            Capacity = 10
+            Capacity = 10,
+            InstructorName = "Elif Hoca"
         });
 
         var reservations = new InMemoryReservationRepository();
-        var clock = new FakeClock(now);
-        var pricing = PricingTestFactory.Engine();
+        var sut = new ReservationsService(
+            sessions,
+            reservations,
+            PricingTestFactory.Engine(),
+            new FakeClock(now),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
 
-        var sut = new ReservationsService(sessions, reservations, pricing, clock);
-
-        var request = new ReserveRequest
+        var req = new ReserveRequest
         {
             MemberId = "m1",
             SessionId = sessionId,
             Membership = FitnessReservation.Pricing.Models.MembershipType.Standard
         };
 
-        // Act
-        var first = sut.Reserve(request);
-        var second = sut.Reserve(request);
+        var first = sut.Reserve(req);
+        var second = sut.Reserve(req);
 
-        // Assert
         first.Success.Should().BeTrue();
-
         second.Success.Should().BeFalse();
         second.Error.Should().Be(ReserveError.DuplicateReservation);
     }

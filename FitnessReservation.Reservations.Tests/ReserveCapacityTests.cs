@@ -11,7 +11,6 @@ public sealed class ReserveCapacityTests
     [Fact]
     public void Reserve_WhenCapacityIsFull_ShouldReturnCapacityFull()
     {
-        // Arrange
         var now = new DateTime(2030, 1, 1, 10, 0, 0, DateTimeKind.Utc);
         var sessionId = Guid.NewGuid();
 
@@ -21,16 +20,19 @@ public sealed class ReserveCapacityTests
             SessionId = sessionId,
             Sport = FitnessReservation.Pricing.Models.SportType.Yoga,
             StartsAtUtc = now.AddHours(2),
-            Capacity = 1
+            Capacity = 1,
+            InstructorName = "Elif Hoca"
         });
 
         var reservations = new InMemoryReservationRepository();
-        var clock = new FakeClock(now);
-        var pricing = PricingTestFactory.Engine();
+        var sut = new ReservationsService(
+            sessions,
+            reservations,
+            PricingTestFactory.Engine(),
+            new FakeClock(now),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
 
-        var sut = new ReservationsService(sessions, reservations, pricing, clock);
-
-        // Act
         var first = sut.Reserve(new ReserveRequest
         {
             MemberId = "m1",
@@ -45,9 +47,7 @@ public sealed class ReserveCapacityTests
             Membership = FitnessReservation.Pricing.Models.MembershipType.Standard
         });
 
-        // Assert
         first.Success.Should().BeTrue();
-
         second.Success.Should().BeFalse();
         second.Error.Should().Be(ReserveError.CapacityFull);
     }

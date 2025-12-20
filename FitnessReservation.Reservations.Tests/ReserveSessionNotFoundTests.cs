@@ -11,25 +11,22 @@ public sealed class ReserveSessionNotFoundTests
     [Fact]
     public void Reserve_WhenSessionDoesNotExist_ShouldReturnSessionNotFound()
     {
-        // Arrange
-        var sessions = new InMemorySessionRepository(); // empty
-        var reservations = new InMemoryReservationRepository();
-        var clock = new FakeClock(new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        var pricing = PricingTestFactory.Engine();
+        var sessions = new InMemorySessionRepository();
+        var sut = new ReservationsService(
+            sessions,
+            new InMemoryReservationRepository(),
+            PricingTestFactory.Engine(),
+            new FakeClock(new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
 
-        var sut = new ReservationsService(sessions, reservations, pricing, clock);
-
-        var request = new ReserveRequest
+        var result = sut.Reserve(new ReserveRequest
         {
             MemberId = "m1",
             SessionId = Guid.NewGuid(),
             Membership = FitnessReservation.Pricing.Models.MembershipType.Standard
-        };
+        });
 
-        // Act
-        var result = sut.Reserve(request);
-
-        // Assert
         result.Success.Should().BeFalse();
         result.Error.Should().Be(ReserveError.SessionNotFound);
     }
@@ -46,14 +43,17 @@ public sealed class ReserveSessionNotFoundTests
             SessionId = sessionId,
             Sport = FitnessReservation.Pricing.Models.SportType.Yoga,
             StartsAtUtc = now,
-            Capacity = 10
+            Capacity = 10,
+            InstructorName = "Elif Hoca"
         });
 
         var sut = new ReservationsService(
             sessions,
             new InMemoryReservationRepository(),
             PricingTestFactory.Engine(),
-            new FakeClock(now));
+            new FakeClock(now),
+            new PeakHourPolicy(),
+            new OccupancyClassifier());
 
         var result = sut.Reserve(new ReserveRequest
         {
@@ -65,6 +65,4 @@ public sealed class ReserveSessionNotFoundTests
         result.Success.Should().BeFalse();
         result.Error.Should().Be(ReserveError.SessionInPast);
     }
-
-
 }

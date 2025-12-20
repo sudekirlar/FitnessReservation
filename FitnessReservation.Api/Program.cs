@@ -16,22 +16,21 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Pricing
 builder.Services.AddSingleton<BasePriceProvider>();
 builder.Services.AddSingleton<MultiplierProvider>();
 builder.Services.AddSingleton<PricingEngine>();
 
-// Reservations
 builder.Services.AddSingleton<InMemorySessionRepository>();
 builder.Services.AddSingleton<ISessionRepository>(sp =>
     sp.GetRequiredService<InMemorySessionRepository>());
 
 builder.Services.AddSingleton<IReservationRepository, InMemoryReservationRepository>();
 builder.Services.AddSingleton<IClock, SystemClock>();
-builder.Services.AddSingleton<ReservationsService>();
 
 builder.Services.AddSingleton<IPeakHourPolicy, PeakHourPolicy>();
 builder.Services.AddSingleton<IOccupancyClassifier, OccupancyClassifier>();
+
+builder.Services.AddSingleton<ReservationsService>();
 
 builder.Services.AddDistributedMemoryCache();
 
@@ -41,8 +40,7 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-
-    options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.None; // local http
 });
 
 builder.Services.AddSingleton<IPasswordService, PasswordService>();
@@ -59,6 +57,20 @@ builder.Services.AddSingleton<IMembershipCodeRepository>(_ =>
 var app = builder.Build();
 
 app.UseSession();
+
+static bool TryGetUser(HttpContext ctx, IMemberRepository members, out Member member)
+{
+    member = default!;
+    if (!AuthSession.TryGetMemberId(ctx, out var memberId))
+        return false;
+
+    var m = members.Get(memberId);
+    if (m is null)
+        return false;
+
+    member = m;
+    return true;
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -189,14 +201,10 @@ app.MapPost("/auth/logout", (HttpContext ctx) =>
 
 app.MapGet("/me", (HttpContext ctx, IMemberRepository members) =>
 {
-    if (!AuthSession.TryGetMemberId(ctx, out var memberId))
+    if (!TryGetUser(ctx, members, out var me))
         return Results.Unauthorized();
 
-    var member = members.Get(memberId);
-    if (member is null)
-        return Results.Unauthorized();
-
-    return Results.Ok(new MeResponse(member.MemberId, member.Username, member.MembershipType));
+    return Results.Ok(new MeResponse(me.MemberId, me.Username, me.MembershipType));
 })
 .WithName("Me");
 
@@ -208,16 +216,20 @@ app.MapPost("/pricing/calculate", (PricingRequest request, PricingEngine engine)
 .WithName("CalculatePrice");
 
 app.MapGet("/sessions", (
+    HttpContext ctx,
     SportType sport,
     DateTime from,
     DateTime to,
-    MembershipType membership,
+    IMemberRepository members,
     ISessionRepository sessions,
     IReservationRepository reservations,
     PricingEngine pricing,
     IPeakHourPolicy peakPolicy,
     IOccupancyClassifier occupancyClassifier) =>
 {
+    if (!TryGetUser(ctx, members, out var me))
+        return Results.Unauthorized();
+
     if (from >= to)
         return Results.BadRequest(new { error = "InvalidDateRange" });
 
@@ -232,7 +244,7 @@ app.MapGet("/sessions", (
             var price = pricing.Calculate(new PricingRequest
             {
                 Sport = s.Sport,
-                Membership = membership,
+                Membership = me.MembershipType,
                 IsPeak = isPeak,
                 Occupancy = occupancy
             });
@@ -255,14 +267,19 @@ app.MapGet("/sessions", (
 .WithName("ListSessions");
 
 app.MapPost("/reservations", (
+    HttpContext ctx,
     CreateReservationRequest body,
+    IMemberRepository members,
     ReservationsService service) =>
 {
+    if (!TryGetUser(ctx, members, out var me))
+        return Results.Unauthorized();
+
     var result = service.Reserve(new ReserveRequest
     {
-        MemberId = body.MemberId,
+        MemberId = me.MemberId.ToString(),
         SessionId = body.SessionId,
-        Membership = body.Membership
+        Membership = me.MembershipType
     });
 
     if (result.Success)
@@ -287,10 +304,7 @@ app.MapPost("/reservations", (
 
 app.Run();
 
-public sealed record CreateReservationRequest(
-    string MemberId,
-    Guid SessionId,
-    MembershipType Membership);
+public sealed record CreateReservationRequest(Guid SessionId);
 
 public sealed record CreateReservationResponse(
     Guid ReservationId,

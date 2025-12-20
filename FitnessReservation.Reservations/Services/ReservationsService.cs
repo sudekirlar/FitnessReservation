@@ -11,18 +11,25 @@ public sealed class ReservationsService
     private readonly IReservationRepository _reservations;
     private readonly PricingEngine _pricing;
     private readonly IClock _clock;
+    private readonly IPeakHourPolicy _peak;
+    private readonly IOccupancyClassifier _occupancy;
 
     public ReservationsService(
         ISessionRepository sessions,
         IReservationRepository reservations,
         PricingEngine pricing,
-        IClock clock)
+        IClock clock,
+        IPeakHourPolicy peak,
+        IOccupancyClassifier occupancy)
     {
         _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
         _reservations = reservations ?? throw new ArgumentNullException(nameof(reservations));
         _pricing = pricing ?? throw new ArgumentNullException(nameof(pricing));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _peak = peak ?? throw new ArgumentNullException(nameof(peak));
+        _occupancy = occupancy ?? throw new ArgumentNullException(nameof(occupancy));
     }
+
     public ReserveResult Reserve(ReserveRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
@@ -34,27 +41,26 @@ public sealed class ReservationsService
         if (session.StartsAtUtc <= _clock.UtcNow)
             return ReserveResult.Fail(ReserveError.SessionInPast);
 
-        // duplicate check
         if (_reservations.Exists(request.MemberId, request.SessionId))
             return ReserveResult.Fail(ReserveError.DuplicateReservation);
 
-        // capacity check
         var reservedCount = _reservations.CountBySession(request.SessionId);
         if (reservedCount >= session.Capacity)
             return ReserveResult.Fail(ReserveError.CapacityFull);
 
+        var isPeak = _peak.IsPeak(session.StartsAtUtc);
+        var occ = _occupancy.Classify(reservedCount, session.Capacity);
 
         var price = _pricing.Calculate(new PricingRequest
         {
             Sport = session.Sport,
             Membership = request.Membership,
-            IsPeak = false,
-            Occupancy = OccupancyLevel.Low
+            IsPeak = isPeak,
+            Occupancy = occ
         });
 
         _reservations.Add(request.MemberId, request.SessionId);
 
         return ReserveResult.Ok(Guid.NewGuid(), price);
     }
-
 }
