@@ -8,4 +8,6 @@ public sealed class ClassSession
     public SportType Sport { get; init; }
     public DateTime StartsAtUtc { get; init; }
     public int Capacity { get; init; }
+
+    public string InstructorName { get; init; } = "TBD";
 }
