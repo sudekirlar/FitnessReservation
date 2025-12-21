@@ -62,52 +62,41 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Start API (background)
+      - name: Start API (background) and wait for /health
         shell: bash
-        env:
-          ASPNETCORE_ENVIRONMENT: Development
-          ASPNETCORE_URLS: http://127.0.0.1:7001
-          ConnectionStrings__Default: Data Source=fitnessreservation.ci.db
         run: |
-          dotnet run -c Release --project FitnessReservation.Api/FitnessReservation.Api.csproj > api.log 2>&1 &
-          echo $! > api.pid
+          set -euo pipefail
 
-      - name: Wait for /health
-        shell: bash
-        run: |
+          # IMPORTANT: pass ASP.NET args after `--`
+          dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj \
+            --configuration Release \
+            --no-build \
+            -- --urls http://127.0.0.1:7001 > api.log 2>&1 &
+
           for i in {1..30}; do
             if curl -sSf http://127.0.0.1:7001/health > /dev/null; then
               echo "API is up"
-              exit 0
+              break
             fi
             sleep 1
           done
-          echo "API did not start in time"
-          echo "---- api.log ----"
-          cat api.log || true
-          exit 1
+
+          if ! curl -sSf http://127.0.0.1:7001/health > /dev/null; then
+            echo "API did not start in time"
+            echo "---- api.log ----"
+            cat api.log
+            exit 1
+          fi
 
       - name: Run Newman (JUnit)
-        shell: bash
         run: |
           mkdir -p postman/out
           newman run postman/FitnessReservation.postman_collection.json \
-            -e postman/FitnessReservation.ci.postman_environment.json \
+            -e postman/FitnessReservation.local.postman_environment.json \
             --reporters cli,junit \
             --reporter-junit-export postman/out/newman-junit-${{ github.run_id }}.xml
 
-      - name: Stop API
-        if: always()
-        shell: bash
-        run: |
-          if [ -f api.pid ]; then
-            kill $(cat api.pid) || true
-          fi
-          echo "---- api.log ----"
-          cat api.log || true
-
       - name: Upload Newman JUnit report
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: newman-junit-${{ github.run_id }}
