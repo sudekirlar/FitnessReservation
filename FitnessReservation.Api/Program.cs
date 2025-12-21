@@ -1,4 +1,5 @@
 ﻿using FitnessReservation.Api.Auth;
+using FitnessReservation.Auth;
 using FitnessReservation.Persistence;
 using FitnessReservation.Persistence.Entities;
 using FitnessReservation.Persistence.Repos;
@@ -53,99 +54,53 @@ builder.Services.AddScoped<IMembershipCodeRepository, EfMembershipCodeRepository
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var db = scope.ServiceProvider.GetRequiredService<FitnessReservationDbContext>();
-
-    var connStr = db.Database.GetDbConnection().ConnectionString ?? string.Empty;
-    var isInMemorySqlite = db.Database.IsSqlite() &&
-                           connStr.Contains(":memory:", StringComparison.OrdinalIgnoreCase);
-
-    if (isInMemorySqlite)
-        db.Database.EnsureCreated();
-    else
-        db.Database.Migrate();
-
-    using var tx = db.Database.BeginTransaction();
-
-    SeedMembershipCode(db, "STU-2025", MembershipType.Student, true);
-    SeedMembershipCode(db, "PRM-2025", MembershipType.Premium, true);
-    SeedMembershipCode(db, "STD-OPEN", MembershipType.Standard, true);
-
-    SeedSession(
-        db,
-        Guid.Parse("11111111-1111-1111-1111-111111111111"),
-        SportType.Yoga,
-        DateTime.UtcNow.AddHours(2),
-        100,
-        "Elif Hoca");
-
-    SeedSession(
-        db,
-        Guid.Parse("33333333-3333-3333-3333-333333333333"),
-        SportType.Yoga,
-        DateTime.UtcNow.AddHours(2),
-        1,
-        "Hasan Hoca");
-
-    SeedSession(
-        db,
-        Guid.Parse("22222222-2222-2222-2222-222222222222"),
-        SportType.Yoga,
-        DateTime.UtcNow.AddHours(-2),
-        10,
-        "Sibel Hoca");
-
-    db.SaveChanges();
-    tx.Commit();
-}
-
-static void SeedMembershipCode(FitnessReservationDbContext db, string code, MembershipType type, bool isActive)
-{
-    var existing = db.MembershipCodes.SingleOrDefault(x => x.Code == code);
-    if (existing is null)
+    using (var scope = app.Services.CreateScope())
     {
-        db.MembershipCodes.Add(new MembershipCodeEntity
-        {
-            Code = code,
-            MembershipType = type,
-            IsActive = isActive,
-            UsedByMemberId = null
-        });
-    }
-    else
-    {
-        existing.MembershipType = type;
-        existing.IsActive = isActive;
-    }
-}
+        var db = scope.ServiceProvider.GetRequiredService<FitnessReservationDbContext>();
 
-static void SeedSession(
-    FitnessReservationDbContext db,
-    Guid sessionId,
-    SportType sport,
-    DateTime startsAtUtc,
-    int capacity,
-    string instructorName)
-{
-    var existing = db.Sessions.SingleOrDefault(x => x.SessionId == sessionId);
-    if (existing is null)
-    {
-        db.Sessions.Add(new SessionEntity
-        {
-            SessionId = sessionId,
-            Sport = sport,
-            StartsAtUtc = startsAtUtc,
-            Capacity = capacity,
-            InstructorName = instructorName
-        });
-    }
-    else
-    {
-        existing.Sport = sport;
-        existing.StartsAtUtc = startsAtUtc;
-        existing.Capacity = capacity;
-        existing.InstructorName = instructorName;
+        var connStr = db.Database.GetDbConnection().ConnectionString ?? string.Empty;
+        var isInMemorySqlite = db.Database.IsSqlite() &&
+                               connStr.Contains(":memory:", StringComparison.OrdinalIgnoreCase);
+
+        if (isInMemorySqlite)
+            db.Database.EnsureCreated();
+        else
+            db.Database.Migrate();
+
+        using var tx = db.Database.BeginTransaction();
+
+        SeedMembershipCode(db, "STU-2025", MembershipType.Student, true);
+        SeedMembershipCode(db, "PRM-2025", MembershipType.Premium, true);
+        SeedMembershipCode(db, "STD-OPEN", MembershipType.Standard, true);
+
+        SeedSession(
+            db,
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            100,
+            "Elif Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            1,
+            "Hasan Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(-2),
+            10,
+            "Sibel Hoca");
+
+        db.SaveChanges();
+        tx.Commit();
     }
 }
 
@@ -356,6 +311,55 @@ app.MapPost("/reservations", (
 .WithName("CreateReservation");
 
 app.Run();
+
+static void SeedMembershipCode(FitnessReservationDbContext db, string code, MembershipType type, bool isActive)
+{
+    var existing = db.MembershipCodes.SingleOrDefault(x => x.Code == code);
+    if (existing is null)
+    {
+        db.MembershipCodes.Add(new MembershipCodeEntity
+        {
+            Code = code,
+            MembershipType = type,
+            IsActive = isActive,
+            UsedByMemberId = null
+        });
+    }
+    else
+    {
+        existing.MembershipType = type;
+        existing.IsActive = isActive;
+    }
+}
+
+static void SeedSession(
+    FitnessReservationDbContext db,
+    Guid sessionId,
+    SportType sport,
+    DateTime startsAtUtc,
+    int capacity,
+    string instructorName)
+{
+    var existing = db.Sessions.SingleOrDefault(x => x.SessionId == sessionId);
+    if (existing is null)
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId,
+            Sport = sport,
+            StartsAtUtc = startsAtUtc,
+            Capacity = capacity,
+            InstructorName = instructorName
+        });
+    }
+    else
+    {
+        existing.Sport = sport;
+        existing.StartsAtUtc = startsAtUtc;
+        existing.Capacity = capacity;
+        existing.InstructorName = instructorName;
+    }
+}
 
 public sealed record CreateReservationRequest(Guid SessionId);
 
