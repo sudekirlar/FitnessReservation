@@ -103,7 +103,7 @@ jobs:
           path: postman/out/newman-junit-${{ github.run_id }}.xml
           retention-days: 7
 
-            - name: ZAP Baseline Scan (target /health)
+      - name: ZAP Baseline Scan (target /health)
         shell: bash
         run: |
           set -euo pipefail
@@ -148,9 +148,11 @@ jobs:
             exit 1
           fi
 
-          # Cleanup
+      - name: Cleanup ZAP container
+        if: always()
+        shell: bash
+        run: |
           docker rm -f zapscan >/dev/null 2>&1 || true
-
 
       - name: Upload ZAP report artifact
         uses: actions/upload-artifact@v4
