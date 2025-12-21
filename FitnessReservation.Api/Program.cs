@@ -4,6 +4,9 @@ using FitnessReservation.Pricing.Services;
 using FitnessReservation.Reservations.Models;
 using FitnessReservation.Reservations.Repos;
 using FitnessReservation.Reservations.Services;
+using FitnessReservation.Persistence;
+using Microsoft.EntityFrameworkCore;
+
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +15,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+
+builder.Services.AddDbContext<FitnessReservationDbContext>(opt =>
+    opt.UseSqlite(builder.Configuration.GetConnectionString("Default")));
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
