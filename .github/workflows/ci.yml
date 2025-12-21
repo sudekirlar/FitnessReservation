@@ -103,19 +103,20 @@ jobs:
           path: postman/out/newman-junit-${{ github.run_id }}.xml
           retention-days: 7
 
-      # -------------------------
-      # ZAP Baseline (Security)
-      # -------------------------
-      - name: ZAP Baseline Scan (target /health)
+            - name: ZAP Baseline Scan (target /health)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p zap
 
-          # Baseline scan. We don't want WARN-only to fail the pipeline.
+          echo "PWD=$(pwd)"
+          ls -la
+          ls -la zap
+
+          # Run ZAP in a named container so we can docker cp outputs even if volume mount is flaky.
           set +e
-          docker run --rm -t --network host \
-            -v "$PWD/zap:/zap/wrk" \
+          docker rm -f zapscan >/dev/null 2>&1 || true
+          docker run --name zapscan -t --network host \
             zaproxy/zap-stable \
             zap-baseline.py \
               -t http://127.0.0.1:7001/health \
@@ -126,15 +127,30 @@ jobs:
           set -e
 
           echo "ZAP exit code: $zap_ec"
-          echo "---- ZAP FAIL-NEW check ----"
 
-          # Fail build only if FAIL-NEW is non-zero
-          if (grep -R "FAIL-NEW:" -n zap 2>/dev/null | grep -vq "FAIL-NEW: 0"); then
-            echo "ZAP reported FAIL findings. Failing the job."
+          # Copy reports out of container
+          docker cp zapscan:/zap/wrk/zap-report.html zap/zap-report.html || true
+          docker cp zapscan:/zap/wrk/zap-report.xml  zap/zap-report.xml  || true
+          docker cp zapscan:/zap/wrk/zap-report.json zap/zap-report.json || true
+
+          # Always show what we actually got
+          echo "---- zap folder ----"
+          ls -la zap || true
+
+          # Fail build only if FAIL-NEW is non-zero (if report exists)
+          if [ -f zap/zap-report.html ]; then
+            if grep -q "FAIL-NEW: [1-9]" zap/zap-report.html; then
+              echo "ZAP reported FAIL findings. Failing the job."
+              exit 1
+            fi
+          else
+            echo "ZAP report not generated; failing so we don't silently skip security."
             exit 1
           fi
 
-          echo "No ZAP FAIL findings (WARN is allowed)."
+          # Cleanup
+          docker rm -f zapscan >/dev/null 2>&1 || true
+
 
       - name: Upload ZAP report artifact
         uses: actions/upload-artifact@v4
