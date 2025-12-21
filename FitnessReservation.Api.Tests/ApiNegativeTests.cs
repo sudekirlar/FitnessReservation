@@ -1,16 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace FitnessReservation.Api.Tests;
 
-public class ApiNegativeTests : IClassFixture<WebApplicationFactory<FitnessReservation.Api.Program>>
+public sealed class ApiNegativeTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public ApiNegativeTests(WebApplicationFactory<FitnessReservation.Api.Program> factory)
+    public ApiNegativeTests(CustomWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -30,5 +29,4 @@ public class ApiNegativeTests : IClassFixture<WebApplicationFactory<FitnessReser
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
-
 }

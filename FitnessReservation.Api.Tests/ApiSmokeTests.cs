@@ -1,16 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace FitnessReservation.Api.Tests;
 
-public class ApiSmokeTests : IClassFixture<WebApplicationFactory<FitnessReservation.Api.Program>>
+public sealed class ApiSmokeTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public ApiSmokeTests(WebApplicationFactory<FitnessReservation.Api.Program> factory)
+    public ApiSmokeTests(CustomWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -37,8 +36,6 @@ public class ApiSmokeTests : IClassFixture<WebApplicationFactory<FitnessReservat
 
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 
-        // Minimal assertion: FinalPrice is present and > 0
-        // (We are not re-testing the whole pricing math here; domain tests already do that.)
         var body = await response.Content.ReadFromJsonAsync<PricingResponse>();
         body.Should().NotBeNull();
         body!.finalPrice.Should().BeGreaterThan(0);
