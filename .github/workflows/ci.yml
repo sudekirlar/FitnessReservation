@@ -103,6 +103,49 @@ jobs:
           path: postman/out/newman-junit-${{ github.run_id }}.xml
           retention-days: 7
 
+      # -------------------------
+      # ZAP Baseline (Security)
+      # -------------------------
+      - name: ZAP Baseline Scan (target /health)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p zap
+
+          # Baseline scan. We don't want WARN-only to fail the pipeline.
+          set +e
+          docker run --rm -t --network host \
+            -v "$PWD/zap:/zap/wrk" \
+            zaproxy/zap-stable \
+            zap-baseline.py \
+              -t http://127.0.0.1:7001/health \
+              -r zap-report.html \
+              -x zap-report.xml \
+              -J zap-report.json
+          zap_ec=$?
+          set -e
+
+          echo "ZAP exit code: $zap_ec"
+          echo "---- ZAP FAIL-NEW check ----"
+
+          # Fail build only if FAIL-NEW is non-zero
+          if (grep -R "FAIL-NEW:" -n zap 2>/dev/null | grep -vq "FAIL-NEW: 0"); then
+            echo "ZAP reported FAIL findings. Failing the job."
+            exit 1
+          fi
+
+          echo "No ZAP FAIL findings (WARN is allowed)."
+
+      - name: Upload ZAP report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report-${{ github.run_id }}
+          path: zap
+          retention-days: 7
+
+      # -------------------------
+      # k6 (Performance)
+      # -------------------------
       - name: Install k6
         shell: bash
         run: |
@@ -112,7 +155,6 @@ jobs:
           tar -xzf k6.tar.gz
           sudo mv "k6-${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
           k6 version
-
 
       - name: k6 performance gate (journey + report)
         shell: bash
