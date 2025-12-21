@@ -52,6 +52,13 @@ builder.Services.AddSingleton<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IMemberRepository, EfMemberRepository>();
 builder.Services.AddScoped<IMembershipCodeRepository, EfMembershipCodeRepository>();
 
+builder.Services.AddCookiePolicy(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Lax;
+    options.Secure = CookieSecurePolicy.None;
+    options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsEnvironment("Testing"))
@@ -104,6 +111,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     }
 }
 
+app.UseCookiePolicy();
 app.UseSession();
 
 static bool TryGetUser(HttpContext ctx, IMemberRepository members, out Member member)
