@@ -103,6 +103,33 @@ jobs:
           path: postman/out/newman-junit-${{ github.run_id }}.xml
           retention-days: 7
 
+      - name: Install k6
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: k6 performance gate (journey + report)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p k6/out
+          k6 run \
+            --vus 5 \
+            --duration 30s \
+            --summary-export k6/out/summary.json \
+            --out json=k6/out/raw.ndjson \
+            k6/journey.js
+
+      - name: Upload k6 performance reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-performance-${{ github.run_id }}
+          path: k6/out
+          retention-days: 7
+
       - name: Upload API log (only if job fails)
         if: failure()
         uses: actions/upload-artifact@v4
