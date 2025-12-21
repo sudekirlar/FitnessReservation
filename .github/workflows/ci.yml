@@ -92,7 +92,7 @@ jobs:
         run: |
           mkdir -p postman/out
           newman run postman/FitnessReservation.postman_collection.json \
-            -e postman/FitnessReservation.local.postman_environment.json \
+            -e postman/FitnessReservation.ci.postman_environment.json \
             --reporters cli,junit \
             --reporter-junit-export postman/out/newman-junit-${{ github.run_id }}.xml
 

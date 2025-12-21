@@ -10,10 +10,16 @@
       "listen": "prerequest",
       "script": {
         "exec": [
-          "pm.variables.set('username', 'u_' + pm.variables.replaceIn('{{$guid}}').replace(/-/g,''));",
-          "pm.variables.set('password', 'P@ssw0rd-1');",
-          "pm.variables.set('sport', 'Yoga');",
-          "pm.variables.set('sessionId', '11111111-1111-1111-1111-111111111111');"
+          "// IMPORTANT: Do NOT overwrite username/password on every request.",
+          "if (!pm.environment.get('username')) {",
+          "  const u = 'u_' + pm.variables.replaceIn('{{$guid}}').replace(/-/g,'');",
+          "  pm.environment.set('username', u);",
+          "}",
+          "if (!pm.environment.get('password')) {",
+          "  pm.environment.set('password', 'P@ssw0rd-1');",
+          "}",
+          "if (!pm.environment.get('sport')) pm.environment.set('sport', 'Yoga');",
+          "if (!pm.environment.get('sessionId')) pm.environment.set('sessionId', '11111111-1111-1111-1111-111111111111');"
         ]
       }
     }
@@ -28,7 +34,11 @@
       "event": [
         {
           "listen": "test",
-          "script": { "exec": [ "pm.test('status 200', () => pm.response.to.have.status(200));" ] }
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));"
+            ]
+          }
         }
       ]
     },
@@ -112,8 +122,10 @@
           "script": {
             "exec": [
               "pm.test('status 200', () => pm.response.to.have.status(200));",
-              "const b = pm.response.json();",
-              "pm.test('membershipType is Standard', () => pm.expect(b.membershipType).to.eql('Standard'));"
+              "if (pm.response.code === 200) {",
+              "  const b = pm.response.json();",
+              "  pm.test('membershipType is Standard', () => pm.expect(b.membershipType).to.eql('Standard'));",
+              "}"
             ]
           }
         }
@@ -131,8 +143,10 @@
           "script": {
             "exec": [
               "pm.test('status 200', () => pm.response.to.have.status(200));",
-              "const b = pm.response.json();",
-              "pm.test('username matches', () => pm.expect(b.username).to.eql(pm.variables.get('username')));"
+              "if (pm.response.code === 200) {",
+              "  const b = pm.response.json();",
+              "  pm.test('username matches', () => pm.expect(b.username).to.eql(pm.environment.get('username')));",
+              "}"
             ]
           }
         }
@@ -169,8 +183,8 @@
             "exec": [
               "const from = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();",
               "const to = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();",
-              "pm.variables.set('fromUtc', from);",
-              "pm.variables.set('toUtc', to);"
+              "pm.environment.set('fromUtc', from);",
+              "pm.environment.set('toUtc', to);"
             ]
           }
         },
@@ -179,9 +193,11 @@
           "script": {
             "exec": [
               "pm.test('status 200', () => pm.response.to.have.status(200));",
-              "const items = pm.response.json();",
-              "pm.test('returns array', () => pm.expect(items).to.be.an('array'));",
-              "pm.test('has price.finalPrice', () => { if (items.length) pm.expect(items[0].price.finalPrice).to.be.above(0); });"
+              "if (pm.response.code === 200) {",
+              "  const items = pm.response.json();",
+              "  pm.test('returns array', () => pm.expect(items).to.be.an('array'));",
+              "  pm.test('has price.finalPrice', () => { if (items.length) pm.expect(items[0].price.finalPrice).to.be.above(0); });",
+              "}"
             ]
           }
         }
@@ -209,9 +225,11 @@
           "script": {
             "exec": [
               "pm.test('status 201', () => pm.response.to.have.status(201));",
-              "const b = pm.response.json();",
-              "pm.test('reservationId exists', () => pm.expect(b.reservationId).to.be.ok);",
-              "pm.test('finalPrice > 0', () => pm.expect(b.finalPrice).to.be.above(0));"
+              "if (pm.response.code === 201) {",
+              "  const b = pm.response.json();",
+              "  pm.test('reservationId exists', () => pm.expect(b.reservationId).to.be.ok);",
+              "  pm.test('finalPrice > 0', () => pm.expect(b.finalPrice).to.be.above(0));",
+              "}"
             ]
           }
         }
