@@ -67,7 +67,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # IMPORTANT: pass ASP.NET args after `--`
           dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj \
             --configuration Release \
             --no-build \
@@ -103,56 +102,54 @@ jobs:
           path: postman/out/newman-junit-${{ github.run_id }}.xml
           retention-days: 7
 
-      - name: ZAP Baseline Scan (target /health)
+      # -------------------------
+      # ZAP (Security)
+      # -------------------------
+      - name: ZAP Baseline Scan (target API)
         shell: bash
         run: |
           set -euo pipefail
+
           mkdir -p zap
+          chmod -R 777 zap
 
           echo "PWD=$(pwd)"
           ls -la
           ls -la zap
 
-          # Run ZAP in a named container so we can docker cp outputs even if volume mount is flaky.
-          set +e
           docker rm -f zapscan >/dev/null 2>&1 || true
-          docker run --name zapscan -t --network host \
+
+          set +e
+          docker run --name zapscan --rm \
+            --network host \
+            -v "$(pwd)/zap:/zap/wrk" \
             zaproxy/zap-stable \
             zap-baseline.py \
-              -t http://127.0.0.1:7001/health \
+              -t "http://127.0.0.1:7001/" \
+              -m 2 \
+              -T 5 \
               -r zap-report.html \
               -x zap-report.xml \
-              -J zap-report.json
+              -J zap-report.json \
+            | tee zap/zap-console.log
           zap_ec=$?
           set -e
 
           echo "ZAP exit code: $zap_ec"
 
-          # Copy reports out of container
-          docker cp zapscan:/zap/wrk/zap-report.html zap/zap-report.html || true
-          docker cp zapscan:/zap/wrk/zap-report.xml  zap/zap-report.xml  || true
-          docker cp zapscan:/zap/wrk/zap-report.json zap/zap-report.json || true
-
-          # Always show what we actually got
-          echo "---- zap folder ----"
+          echo "---- zap folder after run ----"
           ls -la zap || true
 
-          # Fail build only if FAIL-NEW is non-zero (if report exists)
-          if [ -f zap/zap-report.html ]; then
-            if grep -q "FAIL-NEW: [1-9]" zap/zap-report.html; then
-              echo "ZAP reported FAIL findings. Failing the job."
-              exit 1
-            fi
-          else
-            echo "ZAP report not generated; failing so we don't silently skip security."
+          if [ ! -f zap/zap-report.html ]; then
+            echo "ZAP report not generated. Failing."
             exit 1
           fi
 
-      - name: Cleanup ZAP container
-        if: always()
-        shell: bash
-        run: |
-          docker rm -f zapscan >/dev/null 2>&1 || true
+          # Fail only if FAIL-NEW is non-zero
+          if grep -q "FAIL-NEW: [1-9]" zap/zap-report.html; then
+            echo "ZAP reported FAIL findings. Failing the job."
+            exit 1
+          fi
 
       - name: Upload ZAP report artifact
         uses: actions/upload-artifact@v4
