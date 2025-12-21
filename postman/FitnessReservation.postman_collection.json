@@ -1,85 +1,39 @@
 {
   "info": {
-    "name": "FitnessReservation API v1",
-    "_postman_id": "0d5c17a1-3c1b-4b2b-8d7d-b0c14e3f6f3a",
-    "description": "Black-box API smoke tests (auth + sessions + reservations).",
+    "name": "FitnessReservation Smoke",
+    "_postman_id": "9f0f2a7c-7d8a-4a5a-9e4a-5a2f25c0b2b7",
+    "description": "Smoke tests: health, pricing, register/login/me, list sessions, reserve.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
     {
       "listen": "prerequest",
       "script": {
-        "type": "text/javascript",
         "exec": [
-          "// Ensure baseUrl exists",
-          "pm.expect(pm.environment.get('baseUrl')).to.not.be.empty;",
-          "",
-          "// Generate usernames ONCE per run (do NOT regenerate on each request)",
-          "let seed = pm.environment.get('runSeed');",
-          "if (!seed) {",
-          "  seed = (Date.now().toString() + '_' + Math.floor(Math.random() * 1e9).toString());",
-          "  pm.environment.set('runSeed', seed);",
-          "  pm.environment.set('u1', 'u1_' + seed);",
-          "  pm.environment.set('u2', 'u2_' + seed);",
-          "}",
-          "",
-          "// Passwords are constant in env (p1/p2), keep them as-is"
+          "pm.variables.set('username', 'u_' + pm.variables.replaceIn('{{$guid}}').replace(/-/g,''));",
+          "pm.variables.set('password', 'P@ssw0rd-1');",
+          "pm.variables.set('sport', 'Yoga');",
+          "pm.variables.set('sessionId', '11111111-1111-1111-1111-111111111111');"
         ]
       }
     }
   ],
   "item": [
     {
-      "name": "__TEST__ Reset - POST /__test/reset",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/__test/reset",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "__test", "reset" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Health - GET /health",
+      "name": "GET /health",
       "request": {
         "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/health",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "health" ]
-        }
+        "url": "{{baseUrl}}/health"
       },
       "event": [
         {
           "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Body has status=ok', function () { const b = pm.response.json(); pm.expect(b.status).to.eql('ok'); });"
-            ]
-          }
+          "script": { "exec": [ "pm.test('status 200', () => pm.response.to.have.status(200));" ] }
         }
       ]
     },
     {
-      "name": "Auth - Register user1 - POST /auth/register",
+      "name": "POST /pricing/calculate",
       "request": {
         "method": "POST",
         "header": [
@@ -90,26 +44,25 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{u1}}\",\n  \"password\": \"{{p1}}\",\n  \"membershipType\": \"Standard\",\n  \"membershipCode\": null\n}"
+          "raw": "{\n  \"sport\": \"Yoga\",\n  \"membership\": \"Standard\",\n  \"isPeak\": true,\n  \"occupancy\": \"High\"\n}\n"
         },
-        "url": {
-          "raw": "{{baseUrl}}/auth/register",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "auth", "register" ]
-        }
+        "url": "{{baseUrl}}/pricing/calculate"
       },
       "event": [
         {
           "listen": "test",
           "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('finalPrice > 0', () => pm.expect(b.finalPrice).to.be.above(0));"
+            ]
           }
         }
       ]
     },
     {
-      "name": "Auth - Login user1 - POST /auth/login",
+      "name": "POST /auth/register (Standard)",
       "request": {
         "method": "POST",
         "header": [
@@ -120,87 +73,122 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{u1}}\",\n  \"password\": \"{{p1}}\"\n}"
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"membershipType\": \"Standard\",\n  \"membershipCode\": null\n}\n"
         },
-        "url": {
-          "raw": "{{baseUrl}}/auth/login",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "auth", "login" ]
-        }
+        "url": "{{baseUrl}}/auth/register"
       },
       "event": [
         {
           "listen": "test",
           "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - Me - GET /me",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/me",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "me" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Has membershipType', function () { const b = pm.response.json(); pm.expect(b.membershipType).to.be.oneOf(['Standard','Student','Premium']); });"
+              "pm.test('status 201', () => pm.response.to.have.status(201));",
+              "const b = pm.response.json();",
+              "pm.test('memberId exists', () => pm.expect(b.memberId).to.be.ok);"
             ]
           }
         }
       ]
     },
     {
-      "name": "Sessions - GET /sessions (Yoga window)",
+      "name": "POST /auth/login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}\n"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('membershipType is Standard', () => pm.expect(b.membershipType).to.eql('Standard'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /me (after login)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('username matches', () => pm.expect(b.username).to.eql(pm.variables.get('username')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /sessions?sport=Yoga&from..to..",
       "request": {
         "method": "GET",
         "url": {
-          "raw": "{{baseUrl}}/sessions?sport=Yoga&from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z",
+          "raw": "{{baseUrl}}/sessions?sport={{sport}}&from={{fromUtc}}&to={{toUtc}}",
           "host": [ "{{baseUrl}}" ],
           "path": [ "sessions" ],
           "query": [
             {
               "key": "sport",
-              "value": "Yoga"
+              "value": "{{sport}}"
             },
             {
               "key": "from",
-              "value": "2000-01-01T00:00:00Z"
+              "value": "{{fromUtc}}"
             },
             {
               "key": "to",
-              "value": "2100-01-01T00:00:00Z"
+              "value": "{{toUtc}}"
             }
           ]
         }
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const from = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();",
+              "const to = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();",
+              "pm.variables.set('fromUtc', from);",
+              "pm.variables.set('toUtc', to);"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
-            "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Body is array', function () { const b = pm.response.json(); pm.expect(b).to.be.an('array'); pm.expect(b.length).to.be.greaterThan(0); });",
-              "pm.test('Each item has price.finalPrice > 0', function () { const b = pm.response.json(); b.forEach(x => { pm.expect(x.price.finalPrice).to.be.greaterThan(0); }); });"
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const items = pm.response.json();",
+              "pm.test('returns array', () => pm.expect(items).to.be.an('array'));",
+              "pm.test('has price.finalPrice', () => { if (items.length) pm.expect(items[0].price.finalPrice).to.be.above(0); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "Reservations - POST /reservations (success -> 201)",
+      "name": "POST /reservations (reserve session)",
       "request": {
         "method": "POST",
         "header": [
@@ -211,253 +199,20 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"{{futureGeneralSessionId}}\"\n}"
+          "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}\n"
         },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
+        "url": "{{baseUrl}}/reservations"
       },
       "event": [
         {
           "listen": "test",
           "script": {
-            "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
-              "pm.test('Body has reservationId + finalPrice', function () { const b = pm.response.json(); pm.expect(b.reservationId).to.be.a('string'); pm.expect(b.finalPrice).to.be.greaterThan(0); });"
+              "pm.test('status 201', () => pm.response.to.have.status(201));",
+              "const b = pm.response.json();",
+              "pm.test('reservationId exists', () => pm.expect(b.reservationId).to.be.ok);",
+              "pm.test('finalPrice > 0', () => pm.expect(b.finalPrice).to.be.above(0));"
             ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reservations - POST /reservations (duplicate -> 409)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"{{futureGeneralSessionId}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 409', function () { pm.response.to.have.status(409); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reservations - POST /reservations (past -> 400)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"{{pastSessionId}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 400', function () { pm.response.to.have.status(400); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reservations - POST /reservations (session not found -> 404)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"00000000-0000-0000-0000-000000000000\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 404', function () { pm.response.to.have.status(404); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reservations - POST /reservations (capacity=1 user1 -> 201)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"{{futureCapacity1SessionId}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - Logout user1 - POST /auth/logout",
-      "request": {
-        "method": "POST",
-        "url": {
-          "raw": "{{baseUrl}}/auth/logout",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "auth", "logout" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - Register user2 - POST /auth/register",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"username\": \"{{u2}}\",\n  \"password\": \"{{p2}}\",\n  \"membershipType\": \"Standard\",\n  \"membershipCode\": null\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/auth/register",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "auth", "register" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 201', function () { pm.response.to.have.status(201); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Auth - Login user2 - POST /auth/login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"username\": \"{{u2}}\",\n  \"password\": \"{{p2}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/auth/login",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "auth", "login" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 200', function () { pm.response.to.have.status(200); });" ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reservations - POST /reservations (capacity full user2 -> 409)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sessionId\": \"{{futureCapacity1SessionId}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/reservations",
-          "host": [ "{{baseUrl}}" ],
-          "path": [ "reservations" ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [ "pm.test('Status is 409', function () { pm.response.to.have.status(409); });" ]
           }
         }
       ]

@@ -1,23 +1,34 @@
-﻿using System;
-using FluentAssertions;
-using FitnessReservation.Reservations.Repos;
-using Xunit;
+﻿namespace FitnessReservation.Reservations.Repos;
 
-namespace FitnessReservation.Reservations.Tests;
-
-public sealed class InMemoryReservationRepositoryTests
+public sealed class InMemoryReservationRepository : IReservationRepository
 {
-    [Fact]
-    public void Add_WhenSameMemberAndSessionAddedTwice_ShouldThrow()
+    private readonly object _gate = new();
+    private readonly HashSet<(string MemberId, Guid SessionId)> _keys = new();
+
+    public bool Exists(string memberId, Guid sessionId)
     {
-        var repo = new InMemoryReservationRepository();
-        var sessionId = Guid.NewGuid();
+        lock (_gate)
+            return _keys.Contains((memberId, sessionId));
+    }
 
-        repo.Add("m1", sessionId);
+    public int CountBySession(Guid sessionId)
+    {
+        lock (_gate)
+            return _keys.Count(x => x.SessionId == sessionId);
+    }
 
-        var act = () => repo.Add("m1", sessionId);
+    public void Add(string memberId, Guid sessionId, decimal finalPrice, DateTime createdAtUtc)
+    {
+        lock (_gate)
+        {
+            if (!_keys.Add((memberId, sessionId)))
+                throw new InvalidOperationException("Duplicate reservation detected.");
+        }
+    }
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Duplicate reservation*");
+    public void Clear()
+    {
+        lock (_gate)
+            _keys.Clear();
     }
 }

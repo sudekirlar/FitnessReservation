@@ -59,7 +59,7 @@ public sealed class ReservationsService
             Occupancy = occ
         });
 
-        _reservations.Add(request.MemberId, request.SessionId);
+        _reservations.Add(request.MemberId, request.SessionId, price.FinalPrice, _clock.UtcNow);
 
         return ReserveResult.Ok(Guid.NewGuid(), price);
     }

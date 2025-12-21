@@ -28,6 +28,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Persiste
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Persistence", "FitnessReservation.Persistence\FitnessReservation.Persistence.csproj", "{EA039641-E8FA-4476-9424-1C01F555C44F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessReservation.Auth", "FitnessReservation.Auth\FitnessReservation.Auth.csproj", "{E0865768-6CB7-413A-8A76-5EC2C3DE28FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +72,10 @@ Global
 		{EA039641-E8FA-4476-9424-1C01F555C44F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EA039641-E8FA-4476-9424-1C01F555C44F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EA039641-E8FA-4476-9424-1C01F555C44F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E0865768-6CB7-413A-8A76-5EC2C3DE28FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E0865768-6CB7-413A-8A76-5EC2C3DE28FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E0865768-6CB7-413A-8A76-5EC2C3DE28FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E0865768-6CB7-413A-8A76-5EC2C3DE28FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

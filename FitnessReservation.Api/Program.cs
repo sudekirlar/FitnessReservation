@@ -48,15 +48,8 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddSingleton<IPasswordService, PasswordService>();
-builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
-
-builder.Services.AddSingleton<IMembershipCodeRepository>(_ =>
-    new InMemoryMembershipCodeRepository(new[]
-    {
-        new MembershipCode { Code = "STU-2025", MembershipType = MembershipType.Student, IsActive = true },
-        new MembershipCode { Code = "PRM-2025", MembershipType = MembershipType.Premium, IsActive = true },
-        new MembershipCode { Code = "STD-OPEN", MembershipType = MembershipType.Standard, IsActive = true },
-    }));
+builder.Services.AddScoped<IMemberRepository, EfMemberRepository>();
+builder.Services.AddScoped<IMembershipCodeRepository, EfMembershipCodeRepository>();
 
 var app = builder.Build();
 
@@ -65,53 +58,95 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<FitnessReservationDbContext>();
 
     var connStr = db.Database.GetDbConnection().ConnectionString ?? string.Empty;
-    var isInMemorySqlite = db.Database.IsSqlite() && connStr.Contains(":memory:", StringComparison.OrdinalIgnoreCase);
+    var isInMemorySqlite = db.Database.IsSqlite() &&
+                           connStr.Contains(":memory:", StringComparison.OrdinalIgnoreCase);
 
     if (isInMemorySqlite)
         db.Database.EnsureCreated();
     else
         db.Database.Migrate();
 
-    var futureGeneralSessionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    if (!db.Sessions.Any(s => s.SessionId == futureGeneralSessionId))
-    {
-        db.Sessions.Add(new SessionEntity
-        {
-            SessionId = futureGeneralSessionId,
-            Sport = SportType.Yoga,
-            StartsAtUtc = DateTime.UtcNow.AddHours(2),
-            Capacity = 100,
-            InstructorName = "Elif Hoca"
-        });
-    }
+    using var tx = db.Database.BeginTransaction();
 
-    var futureCapacity1SessionId = Guid.Parse("33333333-3333-3333-3333-333333333333");
-    if (!db.Sessions.Any(s => s.SessionId == futureCapacity1SessionId))
-    {
-        db.Sessions.Add(new SessionEntity
-        {
-            SessionId = futureCapacity1SessionId,
-            Sport = SportType.Yoga,
-            StartsAtUtc = DateTime.UtcNow.AddHours(2),
-            Capacity = 1,
-            InstructorName = "Hasan Hoca"
-        });
-    }
+    SeedMembershipCode(db, "STU-2025", MembershipType.Student, true);
+    SeedMembershipCode(db, "PRM-2025", MembershipType.Premium, true);
+    SeedMembershipCode(db, "STD-OPEN", MembershipType.Standard, true);
 
-    var pastSessionId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    if (!db.Sessions.Any(s => s.SessionId == pastSessionId))
-    {
-        db.Sessions.Add(new SessionEntity
-        {
-            SessionId = pastSessionId,
-            Sport = SportType.Yoga,
-            StartsAtUtc = DateTime.UtcNow.AddHours(-2),
-            Capacity = 10,
-            InstructorName = "Sibel Hoca"
-        });
-    }
+    SeedSession(
+        db,
+        Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        SportType.Yoga,
+        DateTime.UtcNow.AddHours(2),
+        100,
+        "Elif Hoca");
+
+    SeedSession(
+        db,
+        Guid.Parse("33333333-3333-3333-3333-333333333333"),
+        SportType.Yoga,
+        DateTime.UtcNow.AddHours(2),
+        1,
+        "Hasan Hoca");
+
+    SeedSession(
+        db,
+        Guid.Parse("22222222-2222-2222-2222-222222222222"),
+        SportType.Yoga,
+        DateTime.UtcNow.AddHours(-2),
+        10,
+        "Sibel Hoca");
 
     db.SaveChanges();
+    tx.Commit();
+}
+
+static void SeedMembershipCode(FitnessReservationDbContext db, string code, MembershipType type, bool isActive)
+{
+    var existing = db.MembershipCodes.SingleOrDefault(x => x.Code == code);
+    if (existing is null)
+    {
+        db.MembershipCodes.Add(new MembershipCodeEntity
+        {
+            Code = code,
+            MembershipType = type,
+            IsActive = isActive,
+            UsedByMemberId = null
+        });
+    }
+    else
+    {
+        existing.MembershipType = type;
+        existing.IsActive = isActive;
+    }
+}
+
+static void SeedSession(
+    FitnessReservationDbContext db,
+    Guid sessionId,
+    SportType sport,
+    DateTime startsAtUtc,
+    int capacity,
+    string instructorName)
+{
+    var existing = db.Sessions.SingleOrDefault(x => x.SessionId == sessionId);
+    if (existing is null)
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId,
+            Sport = sport,
+            StartsAtUtc = startsAtUtc,
+            Capacity = capacity,
+            InstructorName = instructorName
+        });
+    }
+    else
+    {
+        existing.Sport = sport;
+        existing.StartsAtUtc = startsAtUtc;
+        existing.Capacity = capacity;
+        existing.InstructorName = instructorName;
+    }
 }
 
 app.UseSession();
@@ -138,6 +173,8 @@ if (app.Environment.IsDevelopment())
     app.MapPost("/__test/reset", (FitnessReservationDbContext db) =>
     {
         db.Reservations.RemoveRange(db.Reservations);
+        db.Members.RemoveRange(db.Members);
+        db.MembershipCodes.RemoveRange(db.MembershipCodes);
         db.SaveChanges();
         return Results.Ok(new { status = "reset-ok" });
     });

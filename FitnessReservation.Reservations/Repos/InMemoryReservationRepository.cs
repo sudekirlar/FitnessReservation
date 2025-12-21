@@ -17,7 +17,7 @@ public sealed class InMemoryReservationRepository : IReservationRepository
             return _keys.Count(x => x.SessionId == sessionId);
     }
 
-    public void Add(string memberId, Guid sessionId)
+    public void Add(string memberId, Guid sessionId, decimal finalPrice, DateTime createdAtUtc)
     {
         lock (_gate)
         {

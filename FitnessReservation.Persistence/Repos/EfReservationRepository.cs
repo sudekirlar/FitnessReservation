@@ -1,6 +1,5 @@
 ﻿using FitnessReservation.Persistence.Entities;
 using FitnessReservation.Reservations.Repos;
-using Microsoft.EntityFrameworkCore;
 
 namespace FitnessReservation.Persistence.Repos;
 
@@ -20,15 +19,15 @@ public sealed class EfReservationRepository : IReservationRepository
     public int CountBySession(Guid sessionId)
         => _db.Reservations.Count(r => r.SessionId == sessionId);
 
-    public void Add(string memberId, Guid sessionId)
+    public void Add(string memberId, Guid sessionId, decimal finalPrice, DateTime createdAtUtc)
     {
         var entity = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
             MemberId = Guid.Parse(memberId),
             SessionId = sessionId,
-            FinalPrice = 0m,
-            CreatedAtUtc = DateTime.UtcNow
+            FinalPrice = finalPrice,
+            CreatedAtUtc = createdAtUtc
         };
 
         _db.Reservations.Add(entity);
