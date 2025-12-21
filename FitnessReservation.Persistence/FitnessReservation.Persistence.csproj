@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FitnessReservation.Pricing\FitnessReservation.Pricing.csproj" />
+    <ProjectReference Include="..\FitnessReservation.Reservations\FitnessReservation.Reservations.csproj" />
   </ItemGroup>
 
 </Project>

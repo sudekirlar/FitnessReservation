@@ -1,12 +1,13 @@
 ﻿using FitnessReservation.Api.Auth;
+using FitnessReservation.Persistence;
+using FitnessReservation.Persistence.Entities;
+using FitnessReservation.Persistence.Repos;
 using FitnessReservation.Pricing.Models;
 using FitnessReservation.Pricing.Services;
 using FitnessReservation.Reservations.Models;
 using FitnessReservation.Reservations.Repos;
 using FitnessReservation.Reservations.Services;
-using FitnessReservation.Persistence;
 using Microsoft.EntityFrameworkCore;
-
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +20,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddDbContext<FitnessReservationDbContext>(opt =>
     opt.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -27,17 +27,14 @@ builder.Services.AddSingleton<BasePriceProvider>();
 builder.Services.AddSingleton<MultiplierProvider>();
 builder.Services.AddSingleton<PricingEngine>();
 
-builder.Services.AddSingleton<InMemorySessionRepository>();
-builder.Services.AddSingleton<ISessionRepository>(sp =>
-    sp.GetRequiredService<InMemorySessionRepository>());
+builder.Services.AddScoped<ISessionRepository, EfSessionRepository>();
+builder.Services.AddScoped<IReservationRepository, EfReservationRepository>();
 
-builder.Services.AddSingleton<IReservationRepository, InMemoryReservationRepository>();
 builder.Services.AddSingleton<IClock, SystemClock>();
-
 builder.Services.AddSingleton<IPeakHourPolicy, PeakHourPolicy>();
 builder.Services.AddSingleton<IOccupancyClassifier, OccupancyClassifier>();
 
-builder.Services.AddSingleton<ReservationsService>();
+builder.Services.AddScoped<ReservationsService>();
 
 builder.Services.AddDistributedMemoryCache();
 
@@ -47,7 +44,7 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.None; // local http
+    options.Cookie.SecurePolicy = CookieSecurePolicy.None;
 });
 
 builder.Services.AddSingleton<IPasswordService, PasswordService>();
@@ -62,6 +59,60 @@ builder.Services.AddSingleton<IMembershipCodeRepository>(_ =>
     }));
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FitnessReservationDbContext>();
+
+    var connStr = db.Database.GetDbConnection().ConnectionString ?? string.Empty;
+    var isInMemorySqlite = db.Database.IsSqlite() && connStr.Contains(":memory:", StringComparison.OrdinalIgnoreCase);
+
+    if (isInMemorySqlite)
+        db.Database.EnsureCreated();
+    else
+        db.Database.Migrate();
+
+    var futureGeneralSessionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    if (!db.Sessions.Any(s => s.SessionId == futureGeneralSessionId))
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = futureGeneralSessionId,
+            Sport = SportType.Yoga,
+            StartsAtUtc = DateTime.UtcNow.AddHours(2),
+            Capacity = 100,
+            InstructorName = "Elif Hoca"
+        });
+    }
+
+    var futureCapacity1SessionId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    if (!db.Sessions.Any(s => s.SessionId == futureCapacity1SessionId))
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = futureCapacity1SessionId,
+            Sport = SportType.Yoga,
+            StartsAtUtc = DateTime.UtcNow.AddHours(2),
+            Capacity = 1,
+            InstructorName = "Hasan Hoca"
+        });
+    }
+
+    var pastSessionId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    if (!db.Sessions.Any(s => s.SessionId == pastSessionId))
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = pastSessionId,
+            Sport = SportType.Yoga,
+            StartsAtUtc = DateTime.UtcNow.AddHours(-2),
+            Capacity = 10,
+            InstructorName = "Sibel Hoca"
+        });
+    }
+
+    db.SaveChanges();
+}
 
 app.UseSession();
 
@@ -84,55 +135,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 
-    app.MapPost("/__test/reset", (IReservationRepository reservations) =>
+    app.MapPost("/__test/reset", (FitnessReservationDbContext db) =>
     {
-        if (reservations is InMemoryReservationRepository mem)
-        {
-            mem.Clear();
-            return Results.Ok(new { status = "reset-ok" });
-        }
-
-        return Results.Problem("Reset is only supported for InMemoryReservationRepository.");
+        db.Reservations.RemoveRange(db.Reservations);
+        db.SaveChanges();
+        return Results.Ok(new { status = "reset-ok" });
     });
 }
-
-var sessionRepo = app.Services.GetRequiredService<InMemorySessionRepository>();
-
-var futureGeneralSessionId =
-    Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-sessionRepo.Upsert(new ClassSession
-{
-    SessionId = futureGeneralSessionId,
-    Sport = SportType.Yoga,
-    StartsAtUtc = DateTime.UtcNow.AddHours(2),
-    Capacity = 100,
-    InstructorName = "Elif Hoca"
-});
-
-var futureCapacity1SessionId =
-    Guid.Parse("33333333-3333-3333-3333-333333333333");
-
-sessionRepo.Upsert(new ClassSession
-{
-    SessionId = futureCapacity1SessionId,
-    Sport = SportType.Yoga,
-    StartsAtUtc = DateTime.UtcNow.AddHours(2),
-    Capacity = 1,
-    InstructorName = "Hasan Hoca"
-});
-
-var pastSessionId =
-    Guid.Parse("22222222-2222-2222-2222-222222222222");
-
-sessionRepo.Upsert(new ClassSession
-{
-    SessionId = pastSessionId,
-    Sport = SportType.Yoga,
-    StartsAtUtc = DateTime.UtcNow.AddHours(-2),
-    Capacity = 10,
-    InstructorName = "Sibel Hoca"
-});
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
@@ -313,9 +322,7 @@ app.Run();
 
 public sealed record CreateReservationRequest(Guid SessionId);
 
-public sealed record CreateReservationResponse(
-    Guid ReservationId,
-    decimal FinalPrice);
+public sealed record CreateReservationResponse(Guid ReservationId, decimal FinalPrice);
 
 public sealed record SessionListItem(
     Guid SessionId,
@@ -328,25 +335,12 @@ public sealed record SessionListItem(
     OccupancyLevel OccupancyLevel,
     FitnessReservation.Pricing.Models.PricingResult Price);
 
-public sealed record RegisterRequest(
-    string Username,
-    string Password,
-    MembershipType MembershipType,
-    string? MembershipCode);
+public sealed record RegisterRequest(string Username, string Password, MembershipType MembershipType, string? MembershipCode);
 
-public sealed record RegisterResponse(
-    Guid MemberId,
-    string Username,
-    MembershipType MembershipType);
+public sealed record RegisterResponse(Guid MemberId, string Username, MembershipType MembershipType);
 
 public sealed record LoginRequest(string Username, string Password);
 
-public sealed record LoginResponse(
-    Guid MemberId,
-    string Username,
-    MembershipType MembershipType);
+public sealed record LoginResponse(Guid MemberId, string Username, MembershipType MembershipType);
 
-public sealed record MeResponse(
-    Guid MemberId,
-    string Username,
-    MembershipType MembershipType);
+public sealed record MeResponse(Guid MemberId, string Username, MembershipType MembershipType);
