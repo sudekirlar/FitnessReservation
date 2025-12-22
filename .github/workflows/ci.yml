@@ -5,10 +5,12 @@ on:
     branches:
       - master
       - apiv1.2
+      - apiv1.3
   pull_request:
     branches:
       - master
       - apiv1.2
+      - apiv1.3
   workflow_dispatch:
 
 jobs:
