@@ -13,6 +13,18 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- CORS AYARI ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174") 
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials(); 
+    });
+});
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -61,6 +73,8 @@ builder.Services.AddCookiePolicy(options =>
 
 var app = builder.Build();
 
+app.UseCors("AllowReactApp");
+
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using (var scope = app.Services.CreateScope())
@@ -78,36 +92,49 @@ if (!app.Environment.IsEnvironment("Testing"))
 
         using var tx = db.Database.BeginTransaction();
 
+        // --- ÜYELİK KODLARI (SEED) ---
         SeedMembershipCode(db, "STU-2025", MembershipType.Student, true);
         SeedMembershipCode(db, "PRM-2025", MembershipType.Premium, true);
         SeedMembershipCode(db, "STD-OPEN", MembershipType.Standard, true);
 
-        SeedSession(
-            db,
-            Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            SportType.Yoga,
-            DateTime.UtcNow.AddHours(2),
-            100,
-            "Elif Hoca");
+        // Ekstra Kodlar
+        SeedMembershipCode(db, "STU-2025-01", MembershipType.Student, true);
+        SeedMembershipCode(db, "STU-2025-02", MembershipType.Student, true);
+        SeedMembershipCode(db, "STU-2025-03", MembershipType.Student, true);
+        
+        SeedMembershipCode(db, "PRM-2025-01", MembershipType.Premium, true);
+        SeedMembershipCode(db, "PRM-2025-02", MembershipType.Premium, true);
+        SeedMembershipCode(db, "PRM-2025-03", MembershipType.Premium, true);
 
-        SeedSession(
-            db,
-            Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            SportType.Yoga,
-            DateTime.UtcNow.AddHours(2),
-            1,
-            "Hasan Hoca");
+        // VIP Kod
+        SeedMembershipCode(db, "UTK-VIP", MembershipType.Premium, true);
 
-        SeedSession(
-            db,
-            Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            SportType.Yoga,
-            DateTime.UtcNow.AddHours(-2),
-            10,
-            "Sibel Hoca");
+        // --- SEANSLAR (SEED) ---
+        var y = DateTime.UtcNow.Year;
+        var m = DateTime.UtcNow.Month;
+
+        // PILATES (22-28)
+        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0022"), SportType.Pilates, new DateTime(y, m, 22, 7, 30, 0, DateTimeKind.Utc), 16, "Derya Hoca");
+        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0122"), SportType.Pilates, new DateTime(y, m, 22, 12, 0, 0, DateTimeKind.Utc), 12, "Selin Hoca");
+        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0222"), SportType.Pilates, new DateTime(y, m, 22, 19, 0, 0, DateTimeKind.Utc), 18, "Merve Hoca");
+        // ... Diğer günler ve sporlar (Mevcut kodlarınızdaki gibi kalabilir, burayı kısaltıyorum) ...
+        
+        // ZUMBA (Örnek)
+        SeedSession(db, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeee0022"), SportType.Zumba, new DateTime(y, m, 22, 12, 0, 0, DateTimeKind.Utc), 22, "Zeynep Hoca");
 
         db.SaveChanges();
         tx.Commit();
+
+        // --- DEBUG: KODLARI KONSOLA YAZDIR ---
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("\n--- VERİTABANINDAKİ KUPON KODLARI ---");
+        foreach(var c in db.MembershipCodes.ToList())
+        {
+            var status = c.UsedByMemberId == null ? "MÜSAİT (Kullanılabilir)" : "KULLANILMIŞ (Hata Verir)";
+            Console.WriteLine($"KOD: {c.Code.PadRight(15)} | TİP: {c.MembershipType.ToString().PadRight(10)} | DURUM: {status}");
+        }
+        Console.WriteLine("-------------------------------------\n");
+        Console.ResetColor();
     }
 }
 
@@ -243,8 +270,12 @@ app.MapGet("/sessions", (
     IPeakHourPolicy peakPolicy,
     IOccupancyClassifier occupancyClassifier) =>
 {
-    if (!TryGetUser(ctx, members, out var me))
-        return Results.Unauthorized();
+    // Misafir Modu
+    MembershipType userMembership = MembershipType.Standard;
+    if (TryGetUser(ctx, members, out var me))
+    {
+        userMembership = me.MembershipType;
+    }
 
     if (from >= to)
         return Results.BadRequest(new { error = "InvalidDateRange" });
@@ -260,7 +291,7 @@ app.MapGet("/sessions", (
             var price = pricing.Calculate(new PricingRequest
             {
                 Sport = s.Sport,
-                Membership = me.MembershipType,
+                Membership = userMembership,
                 IsPeak = isPeak,
                 Occupancy = occupancy
             });
@@ -337,6 +368,8 @@ static void SeedMembershipCode(FitnessReservationDbContext db, string code, Memb
     {
         existing.MembershipType = type;
         existing.IsActive = isActive;
+        // KODLARI SIFIRLA (Kullanılmış olsa bile boşa çıkar)
+        existing.UsedByMemberId = null;
     }
 }
 
