@@ -18,10 +18,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174") 
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials(); 
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -101,7 +101,7 @@ if (!app.Environment.IsEnvironment("Testing"))
         SeedMembershipCode(db, "STU-2025-01", MembershipType.Student, true);
         SeedMembershipCode(db, "STU-2025-02", MembershipType.Student, true);
         SeedMembershipCode(db, "STU-2025-03", MembershipType.Student, true);
-        
+
         SeedMembershipCode(db, "PRM-2025-01", MembershipType.Premium, true);
         SeedMembershipCode(db, "PRM-2025-02", MembershipType.Premium, true);
         SeedMembershipCode(db, "PRM-2025-03", MembershipType.Premium, true);
@@ -113,14 +113,32 @@ if (!app.Environment.IsEnvironment("Testing"))
         var y = DateTime.UtcNow.Year;
         var m = DateTime.UtcNow.Month;
 
-        // PILATES (22-28)
-        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0022"), SportType.Pilates, new DateTime(y, m, 22, 7, 30, 0, DateTimeKind.Utc), 16, "Derya Hoca");
-        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0122"), SportType.Pilates, new DateTime(y, m, 22, 12, 0, 0, DateTimeKind.Utc), 12, "Selin Hoca");
-        SeedSession(db, Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0222"), SportType.Pilates, new DateTime(y, m, 22, 19, 0, 0, DateTimeKind.Utc), 18, "Merve Hoca");
-        // ... Diğer günler ve sporlar (Mevcut kodlarınızdaki gibi kalabilir, burayı kısaltıyorum) ...
-        
-        // ZUMBA (Örnek)
-        SeedSession(db, Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeee0022"), SportType.Zumba, new DateTime(y, m, 22, 12, 0, 0, DateTimeKind.Utc), 22, "Zeynep Hoca");
+        // ------------------------------------------------------------
+        // Compatibility seeds for Postman/Newman/K6 (expected fixed IDs)
+        // ------------------------------------------------------------
+        SeedSession(
+            db,
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            100,
+            "Elif Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            1,
+            "Hasan Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(-2),
+            10,
+            "Sibel Hoca");
 
         db.SaveChanges();
         tx.Commit();
@@ -128,11 +146,13 @@ if (!app.Environment.IsEnvironment("Testing"))
         // --- DEBUG: KODLARI KONSOLA YAZDIR ---
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("\n--- VERİTABANINDAKİ KUPON KODLARI ---");
-        foreach(var c in db.MembershipCodes.ToList())
+        foreach (var c in db.MembershipCodes.ToList())
         {
             var status = c.UsedByMemberId == null ? "MÜSAİT (Kullanılabilir)" : "KULLANILMIŞ (Hata Verir)";
-            Console.WriteLine($"KOD: {c.Code.PadRight(15)} | TİP: {c.MembershipType.ToString().PadRight(10)} | DURUM: {status}");
+            Console.WriteLine(
+                $"KOD: {c.Code.PadRight(15)} | TİP: {c.MembershipType.ToString().PadRight(10)} | DURUM: {status}");
         }
+
         Console.WriteLine("-------------------------------------\n");
         Console.ResetColor();
     }
@@ -211,7 +231,8 @@ app.MapPost("/auth/register", (
     if (body.MembershipType is MembershipType.Student or MembershipType.Premium)
         codes.MarkUsed(body.MembershipCode!, member.MemberId);
 
-    return Results.Created($"/members/{member.MemberId}",
+    return Results.Created(
+        $"/members/{member.MemberId}",
         new RegisterResponse(member.MemberId, member.Username, member.MembershipType));
 })
 .WithName("Register");
