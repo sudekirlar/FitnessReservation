@@ -92,6 +92,33 @@ if (!app.Environment.IsEnvironment("Testing"))
         SeedMembershipCode(db, "UTK-VIP", MembershipType.Premium, true);
 
         // ------------------------------------------------------------
+        // Compatibility seeds for Postman/Newman/K6 (expected fixed IDs)
+        // ------------------------------------------------------------
+        SeedSession(
+            db,
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            100,
+            "Elif Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(2),
+            1,
+            "Hasan Hoca");
+
+        SeedSession(
+            db,
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            SportType.Yoga,
+            DateTime.UtcNow.AddHours(-2),
+            10,
+            "Sibel Hoca");
+
+        // ------------------------------------------------------------
         // Seed: Pilates (22 -> 28) daily (2-3 sessions/day), realistic hours/capacities
         // ------------------------------------------------------------
         var y = DateTime.UtcNow.Year;
