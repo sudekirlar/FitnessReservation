@@ -302,8 +302,11 @@ app.MapPost("/auth/register", (
     IMembershipCodeRepository codes,
     IPasswordService passwords) =>
 {
-    if (string.IsNullOrWhiteSpace(body.Username) || string.IsNullOrWhiteSpace(body.Password))
-        return Results.BadRequest(new { error = "InvalidInput" });
+    if (string.IsNullOrWhiteSpace(body.Username) || body.Username.Length < 3)
+        return Results.BadRequest(new { error = "UsernameTooShort" });
+
+    if (string.IsNullOrWhiteSpace(body.Password) || body.Password.Length < 6)
+        return Results.BadRequest(new { error = "PasswordTooWeak" });
 
     if (body.MembershipType is MembershipType.Student or MembershipType.Premium)
     {
@@ -346,6 +349,9 @@ app.MapPost("/auth/login", (
     IMemberRepository members,
     IPasswordService passwords) =>
 {
+    if (string.IsNullOrWhiteSpace(body.Username) || string.IsNullOrWhiteSpace(body.Password))
+        return Results.BadRequest(new { error = "InvalidInput" });
+
     var member = members.FindByUsername(body.Username);
     if (member is null)
         return Results.Unauthorized();
