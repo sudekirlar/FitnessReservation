@@ -369,3 +369,9 @@ FodyWeavers.xsd
 coverage-report-demo/**
 
 FitnessReservation.Pricing.Tests/TestResults/**
+
+*.db
+*.db-shm
+*.db-wal
+data/
+**/App_Data/*.db
