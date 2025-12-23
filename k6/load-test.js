@@ -40,6 +40,6 @@ export default function () {
 
 export function handleSummary(data) {
     return {
-        "summary.html": htmlReport(data),
+        "k6-results/summary.html": htmlReport(data),
     };
 }
