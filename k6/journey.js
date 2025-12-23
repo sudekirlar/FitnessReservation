@@ -52,7 +52,7 @@ export default function () {
       try {
         const arr = r.json();
         return Array.isArray(arr) && arr.length > 0;
-      } catch {
+      } catch (e) {
         return false;
       }
     },
