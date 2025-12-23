@@ -97,15 +97,21 @@ jobs:
           tar -xzf k6.tar.gz
           sudo mv k6-v0.50.0-linux-amd64/k6 /usr/local/bin/k6
 
-      - name: Run Chaos & Performance Test
+      - name: Run Chaos & Performance Test (Optimized Load Test)
         run: |
-          # Pumba'yý arka planda baþlat (Kaos Maymunu)
+          # 1. Pumba'yý arka planda baþlat (Kaos Maymunu)
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             gaiaadm/pumba --interval 15s stop --duration 5s --restart fitness-app &
           
-          # Kaos sürerken k6 performans testini çalýþtýr
+          # 2. Kaos sürerken k6 LOAD TEST çalýþtýr
+          # Süreyi 30 saniye ile sýnýrladýk (þiþmeyi önlemek için)
+          # VUS sayýsýný 10 yaptýk (daha gerçekçi bir yük için)
           mkdir -p k6-results
-          k6 run --vus 5 --duration 20s --summary-export k6-results/summary.json k6/journey.js || true
+          k6 run \
+            --vus 10 \
+            --duration 30s \
+            --summary-export k6-results/summary.json \
+            k6/load-test.js || true
 
       # 7. Tüm Raporlarý Artifact Olarak Yükleme
       - name: Upload Test Artifacts
