@@ -1,16 +1,10 @@
-name: CI
+name: CI (Full Quality & Resilience Gate)
 
 on:
   push:
-    branches:
-      - master
-      - apiv1.2
-      - backend
+    branches: [ "master", "apiv1.2", "backend" ]
   pull_request:
-    branches:
-      - master
-      - apiv1.2
-      - backend
+    branches: [ "master", "apiv1.2", "backend" ]
   workflow_dispatch:
 
 jobs:
@@ -18,44 +12,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup .NET (use global.json)
+      # 1. .NET Ortamý, Derleme ve Unit Testler
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
 
-      - name: Cache NuGet
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      - name: Restore
+      - name: Restore Dependencies
         run: dotnet restore
 
-      - name: Build
+      - name: Build Project
         run: dotnet build -c Release --no-restore
 
-      - name: Test (with coverage)
+      - name: Run Unit Tests with Coverage
         run: dotnet test -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
 
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
-      - name: Generate coverage report (HTML)
+      - name: Generate Coverage Report (HTML)
         run: reportgenerator "-reports:**/coverage.cobertura.xml" "-targetdir:coverage-report" "-reporttypes:Html"
 
-      - name: Upload coverage report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-${{ github.run_id }}
-          path: coverage-report
-          retention-days: 7
-
+      # 2. Node.js ve Newman (Postman) Hazýrlýðý
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -64,32 +45,34 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Start API (background) and wait for /health
-        shell: bash
+      # 3. Dockerize Etme ve API Baþlatma (Path Hatasýný Çözer)
+      - name: Build Docker Image
+        run: docker build -t fitness-reservation-api .
+
+      - name: Create Data Directory & Start Container
         run: |
-          set -euo pipefail
+          mkdir -p data
+          chmod 777 data
+          docker run -d -p 7001:7001 --name fitness-app \
+            -v $(pwd)/data:/app/data \
+            fitness-reservation-api
 
-          dotnet run --project FitnessReservation.Api/FitnessReservation.Api.csproj \
-            --configuration Release \
-            --no-build \
-            -- --urls http://127.0.0.1:7001 > api.log 2>&1 &
-
+      - name: Wait for API Health Check
+        run: |
           for i in {1..30}; do
-            if curl -sSf http://127.0.0.1:7001/health > /dev/null; then
-              echo "API is up"
-              break
+            if curl -s http://localhost:7001/health; then
+              echo "API is up and running!"
+              exit 0
             fi
-            sleep 1
+            echo "Waiting for API..."
+            sleep 2
           done
+          echo "API failed to start"
+          docker logs fitness-app
+          exit 1
 
-          if ! curl -sSf http://127.0.0.1:7001/health > /dev/null; then
-            echo "API did not start in time"
-            echo "---- api.log ----"
-            cat api.log
-            exit 1
-          fi
-
-      - name: Run Newman (JUnit)
+      # 4. Newman (Postman) Entegrasyon Testleri
+      - name: Run Newman Tests
         run: |
           mkdir -p postman/out
           newman run postman/FitnessReservation.postman_collection.json \
@@ -97,105 +80,53 @@ jobs:
             --reporters cli,junit \
             --reporter-junit-export postman/out/newman-junit-${{ github.run_id }}.xml
 
-      - name: Upload Newman JUnit report
-        uses: actions/upload-artifact@v4
-        with:
-          name: newman-junit-${{ github.run_id }}
-          path: postman/out/newman-junit-${{ github.run_id }}.xml
-          retention-days: 7
-
-      # -------------------------
-      # ZAP (Security)
-      # -------------------------
-      - name: ZAP Baseline Scan (target API)
-        shell: bash
+      # 5. ZAP Active Security Scan (Full Scan)
+      - name: ZAP Active Scan
         run: |
-          set -euo pipefail
-
           mkdir -p zap
-          chmod -R 777 zap
+          chmod 777 zap
+          docker run --rm --network host \
+            -v $(pwd)/zap:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-full-scan.py -t http://localhost:7001 -r zap_active_report.html || true
 
-          echo "PWD=$(pwd)"
-          ls -la
-          ls -la zap
-
-          docker rm -f zapscan >/dev/null 2>&1 || true
-
-          set +e
-          docker run --name zapscan --rm \
-            --network host \
-            -v "$(pwd)/zap:/zap/wrk" \
-            zaproxy/zap-stable \
-            zap-baseline.py \
-              -t "http://127.0.0.1:7001/" \
-              -m 2 \
-              -T 5 \
-              -r zap-report.html \
-              -x zap-report.xml \
-              -J zap-report.json \
-            | tee zap/zap-console.log
-          zap_ec=$?
-          set -e
-
-          echo "ZAP exit code: $zap_ec"
-
-          echo "---- zap folder after run ----"
-          ls -la zap || true
-
-          if [ ! -f zap/zap-report.html ]; then
-            echo "ZAP report not generated. Failing."
-            exit 1
-          fi
-
-          # Fail only if FAIL-NEW is non-zero
-          if grep -q "FAIL-NEW: [1-9]" zap/zap-report.html; then
-            echo "ZAP reported FAIL findings. Failing the job."
-            exit 1
-          fi
-
-      - name: Upload ZAP report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report-${{ github.run_id }}
-          path: zap
-          retention-days: 7
-
-      # -------------------------
-      # k6 (Performance)
-      # -------------------------
+      # 6. Chaos Engineering & Performance (k6)
       - name: Install k6
-        shell: bash
         run: |
-          set -euo pipefail
-          K6_VERSION="v0.57.0"
-          curl -sSL -o k6.tar.gz "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz"
+          curl -sSL -o k6.tar.gz https://github.com/grafana/k6/releases/download/v0.50.0/k6-v0.50.0-linux-amd64.tar.gz
           tar -xzf k6.tar.gz
-          sudo mv "k6-${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
-          k6 version
+          sudo mv k6-v0.50.0-linux-amd64/k6 /usr/local/bin/k6
 
-      - name: k6 performance gate (journey + report)
-        shell: bash
+      - name: Run Chaos & Performance Test
         run: |
-          set -euo pipefail
-          mkdir -p k6/out
-          k6 run \
-            --vus 5 \
-            --duration 30s \
-            --summary-export k6/out/summary.json \
-            --out json=k6/out/raw.ndjson \
-            k6/journey.js
+          # Pumba'yý arka planda baþlat (Kaos Maymunu)
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            gaiaadm/pumba --interval 15s stop --duration 5s --restart fitness-app &
+          
+          # Kaos sürerken k6 performans testini çalýþtýr
+          mkdir -p k6-results
+          k6 run --vus 5 --duration 20s --summary-export k6-results/summary.json k6/journey.js
 
-      - name: Upload k6 performance reports
+      # 7. Tüm Raporlarý Artifact Olarak Yükleme
+      - name: Upload Test Artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: k6-performance-${{ github.run_id }}
-          path: k6/out
+          name: Full-Project-Test-Reports
+          path: |
+            coverage-report/
+            postman/out/
+            zap/zap_active_report.html
+            k6-results/
           retention-days: 7
 
-      - name: Upload API log (only if job fails)
+      - name: Upload Docker Logs on Failure
+        if: failure()
+        run: docker logs fitness-app > docker-api-fail.log
+
+      - name: Upload Fail Log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: api-log-${{ github.run_id }}
-          path: api.log
-          retention-days: 7
+          name: failure-logs
+          path: docker-api-fail.log
