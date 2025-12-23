@@ -14,6 +14,11 @@ public sealed class ReservationsService
     private readonly IPeakHourPolicy _peak;
     private readonly IOccupancyClassifier _occupancy;
 
+    // Rezervasyon işlemini atomik hale getirmek için kullanılan kilit nesnesi.
+    // 'static' olması önemlidir; çünkü ReservationsService 'Scoped' olarak kaydedilmiştir.
+    // Static yapı, tüm HTTP isteklerinin aynı kilit nesnesine tabi olmasını sağlar.
+    private static readonly object _reservationLock = new();
+
     public ReservationsService(
         ISessionRepository sessions,
         IReservationRepository reservations,
@@ -34,33 +39,38 @@ public sealed class ReservationsService
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
 
-        var session = _sessions.Get(request.SessionId);
-        if (session is null)
-            return ReserveResult.Fail(ReserveError.SessionNotFound);
-
-        if (session.StartsAtUtc <= _clock.UtcNow)
-            return ReserveResult.Fail(ReserveError.SessionInPast);
-
-        if (_reservations.Exists(request.MemberId, request.SessionId))
-            return ReserveResult.Fail(ReserveError.DuplicateReservation);
-
-        var reservedCount = _reservations.CountBySession(request.SessionId);
-        if (reservedCount >= session.Capacity)
-            return ReserveResult.Fail(ReserveError.CapacityFull);
-
-        var isPeak = _peak.IsPeak(session.StartsAtUtc);
-        var occ = _occupancy.Classify(reservedCount, session.Capacity);
-
-        var price = _pricing.Calculate(new PricingRequest
+        // Bu blok içindeki işlemler bitmeden başka bir thread (istek) içeri giremez.
+        lock (_reservationLock)
         {
-            Sport = session.Sport,
-            Membership = request.Membership,
-            IsPeak = isPeak,
-            Occupancy = occ
-        });
+            var session = _sessions.Get(request.SessionId);
+            if (session is null)
+                return ReserveResult.Fail(ReserveError.SessionNotFound);
 
-        _reservations.Add(request.MemberId, request.SessionId, price.FinalPrice, _clock.UtcNow);
+            if (session.StartsAtUtc <= _clock.UtcNow)
+                return ReserveResult.Fail(ReserveError.SessionInPast);
 
-        return ReserveResult.Ok(Guid.NewGuid(), price);
+            if (_reservations.Exists(request.MemberId, request.SessionId))
+                return ReserveResult.Fail(ReserveError.DuplicateReservation);
+
+            var reservedCount = _reservations.CountBySession(request.SessionId);
+            if (reservedCount >= session.Capacity)
+                return ReserveResult.Fail(ReserveError.CapacityFull);
+
+            // Dinamik fiyatlandırma hesaplamaları
+            var isPeak = _peak.IsPeak(session.StartsAtUtc);
+            var occ = _occupancy.Classify(reservedCount, session.Capacity);
+
+            var price = _pricing.Calculate(new PricingRequest
+            {
+                Sport = session.Sport,
+                Membership = request.Membership,
+                IsPeak = isPeak,
+                Occupancy = occ
+            });
+
+            _reservations.Add(request.MemberId, request.SessionId, price.FinalPrice, _clock.UtcNow);
+
+            return ReserveResult.Ok(Guid.NewGuid(), price);
+        }
     }
 }
