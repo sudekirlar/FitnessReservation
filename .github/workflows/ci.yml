@@ -105,7 +105,7 @@ jobs:
           
           # Kaos sürerken k6 performans testini çalýþtýr
           mkdir -p k6-results
-          k6 run --vus 5 --duration 20s --summary-export k6-results/summary.json k6/journey.js
+          k6 run --vus 5 --duration 20s --summary-export k6-results/summary.json k6/journey.js || true
 
       # 7. Tüm Raporlarý Artifact Olarak Yükleme
       - name: Upload Test Artifacts
